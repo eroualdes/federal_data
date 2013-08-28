@@ -1,3 +1,4 @@
+.gitignore
 *.pyc
 *.doc
 play.py
