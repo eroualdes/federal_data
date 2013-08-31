@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import print_function
-from os.path import join, basename, isfile, splitext
+from os.path import join, basename, isfile, splitext, abspath
 from os import makedirs, listdir
 from struct import Struct
 from sys import exit
@@ -12,408 +12,184 @@ import csv
 from aux.auxiliary import states, ae_headers
 from aux.utilities import *
 
-website = 'http://www.msha.gov/STATS/PART50/P50Y2K/AETABLE.HTM'
-
-# only address/employment files so far
-
-
 class MSHA:
     """A class to handle downloading, reading, and writing MSHA data."""
 
-    def __init__(self, type):
-        if type == 'coal':
-        elif type == 'other':
-        elif type == 'coal_contractor':
-        elif type == 'other_contractor':
-        else:
-            print('Don\'t understand type %s' % type)
-
-
-def downloadAE(directory, years, coal = True, other = False, 
-                      coal_contractors = False,  other_contractors = False,
-                      overwrite = False):
-    """Download sefl-extracting MSHA data files, for specified years, into folder directory.  
-
-    Args:
-        directory (string): full path to folder for which the data files should go
-        years (list): a list of years for which the data is downloaded (min 1983, max 2013)
-        coal (boolean): True means download coal data; default = True
-        other (boolean): True means download metal/nonmetal data; default = False
-        coal_contractors (boolean): True means download coal contractors data; default = False
-        other_contractors (boolean): True means download metal/nonmetal contractors data; default = False
-        overwrite (boolean): True will overwrite everything in directory; default = False
-
-    Returns:
-        files (list): paths to the downloaded files
-    """
-
-    # check years within appropriate time span
-    if max(years) > 2013 or min(years) < 1983:
-        exit('Years out of range; check website %s for all years available.' % website)
-
-    files = []
-    # url: MSHA coal files
+    types = {'c': 'coal', 'o': 'other', 'cc': 'coal_contractor', 
+             'oc': 'other_contractor', 'ci': 'coal_injury', 
+             'oi': 'other_injury', 'cic': 'coal_injury_contractor', 
+             'oic': 'other_injury_contractor', 'cn': 'coal_narrative', 
+             'on': 'other_narrative', 'ccn': 'coal_contractor_narrative',
+             'ocn': 'other_contractor_narrative', 'm': 'master_index'}
+    website = 'http://www.msha.gov/STATS/PART50/P50Y2K/AETABLE.HTM'
     baseURL = 'http://www.msha.gov/STATS/PART50/P50Y2K/A&I/'
-    mshaCOAL = [baseURL + '%d/cade%d.exe' % (y, y) for y in years]
-    mshaOTHER = [baseURL + '%d/made%d.exe' % (y, y) for y in years]
-    mshaCOAL_CON = [baseURL + '%d/ctad%d.exe' % (y, y) for y in years]
-    mshaOTHER_CON = [baseURL + '%d/mtad%d.exe' % (y, y) for y in years]
 
-    downloads = []
-    if coal == True:
-        downloads += mshaCOAL
-    elif other == True:
-        downloads += mshaOTHER
-    elif coal_contractors == True:
-        downloads += mshaCOAL_CON
-    elif other_contractors == True:
-        downloads += mshaOTHER_CON
+    def __init__(self, type, years, download_directory):
+        if type not in self.types.values():
+            print('Don\'t understand type %s' % type)
+        if max(years) > 2013 or min(years) < 1983:
+            print('Years out of range; check website %s for all years available.' % self.website)
 
-    if not downloads:
-        exit('You specify something to download.')
+        self.dir = abspath(download_directory)
+        self.possible_subunits = None
+        self.url = None
+        if type == self.types['c']:
+            self.s = '%d/cade%d.exe'
+        if type == self.types['o']:
+            self.s = '%d/made%d.exe'
+        if type == self.types['cc']:
+            self.s = '%d/ctad%d.exe'
+        if type == self.types['oc']:
+            self.s = '%d/mtad%d.exe'
+        if type == self.types['ci']:
+            self.s = '%d/caim%d.exe'
+        if type == self.types['oi']:
+            self.s = '%d/maim%d.exe'
+        if type == self.types['cic']:
+            self.s = '%d/ccti%d.exe'
+        if type == self.types['oic']:
+            self.s = '%d/mcti%d.exe'
+        if type == self.types['cn']:
+            self.s = '%d/canm%d.exe'
+        if type == self.types['on']:
+            self.s = '%d/manm%d.exe'
+        if type == self.types['ccn']:
+            self.s = '%d/cctn%d.exe'
+        if type == self.types['ocn']:
+            self.s = '%d/mctn%d.exe'
+        if type == self.types['m']:
+            self.url = 'http://www.msha.gov/STATS/PART50/P50Y2K/MIF/mif.exe'
 
-    mkdir(directory, overwrite = overwrite)
-    for url in downloads:
-        file_name = url.split('/')[-1]
-        F = join(directory, file_name)
-        files.append(F)
+        if not self.url:
+            self.url  = [self.baseURL + self.s % (y, y) for y in years]
 
-        try:
-            u = urlopen(url)
-            with open(F, 'wb') as f:
-                meta = u.info()
-                file_size = int(meta.getheaders("Content-Length")[0])
-                print("Downloading: %s Bytes: %s" % (file_name, file_size))
+        self.row1_keys = ['constant', 'type_file', 'year_file', 'cycle_number', 'update_date', 'filler'] # 6
 
-                file_size_dl = 0
-                block_sz = 8192
-                while True:
-                    buffer = u.read(block_sz)
-                    if not buffer:
-                        break
+        if type in [self.types[x] for x in ['c', 'o', 'cc', 'oc']]:
+            self.subunit_keys = ['subunit_%d_code', 'document_number_q%d', 'number_employees_q%d', 'employee_hours_q%d', 'tons_production_q%d', 'document_number_q%d', 'number_employees_q%d', 'employee_hours_q%d', 'tons_production_q%d', 'document_number_q%d', 'number_employees_q%d', 'employee_hours_q%d', 'tons_production_q%d', 'document_number_q%d', 'number_employees_q%d', 'employee_hours_q%d', 'tons_production_q%d'] # 17
+            self.row_keys = ['mine_id', 'contractor', 'filler01', 'inspection_office', 'state_code', 'county_code', 'sic', 'filler02', 'canvass', 'mine_type', 'status_code', 'status_date', 'seam_height', 'filler03', 'prior_status_code', 'travel_area', 'mailing_control', 'company_name', 'filler04', 'mine_name', 'filler05', 'address', 'filler06', 'city', 'filler07', 'state_abbreviation', 'zip_code', 'filler08', 'county_name', 'injury_flag_q1', 'injury_count_q1', 'injury_flag_q2', 'injury_count_q2', 'injury_flag_q3', 'injury_count_q3', 'injury_flag_q4', 'injury_count_q4', 'work_group', 'update_addition_year', 'update_addition_number', 'update_change_year', 'update_change_number', 'number_subunits'] # 43
 
-                    file_size_dl += len(buffer)
-                    f.write(buffer)
-                    status = r"%10d [%3.2f%%]" % (file_size_dl, file_size_dl * 100./file_size)
-                    status = status + chr(8)*(len(status)+1)
-                    print(status, end = '')
-                
-        #handle errors
-        except HTTPError, e:
-            print('HTTP Error:', e.code, url)
-        except URLError, e:
-            print('URL Error:', e.reason, url)
+        if type in [self.types[x] for x in ['c', 'o']]:
+            self.fieldwidths1 = (7, 7, 14, 4, 3, 8, 833) 
+            self.fieldwidths = (7, 7, 3, 4, 2, 3, 5, 1, 1, 2, 1, 8, 4, 2, 1, 3, 1, 30, 18, 30, 18, 30, 12, 13, 9, 2, 5, 4, 24, 1, 3, 1, 3, 1, 3, 1, 3, 2, 4, 3, 4, 3, 1, 2, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 2, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 2, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 2, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 25)
+            self.row1_keys = ['constant'] + self.row1_keys
+            self.possible_subunits = 4
 
-    return(files)
+        if type in [self.types[x] for x in ['cc', 'oc']]:
+            self.fieldwidths1 = (14, 14, 4, 3, 8, 1543)
+            self.fieldwidths = (7, 7, 3, 4, 2, 3, 5, 1, 1, 2, 1, 8, 4, 2, 1, 3, 1, 30, 18, 30, 18, 30, 12, 13, 9, 2, 5, 4, 24, 1, 3, 1, 3, 1, 3, 1, 3, 2, 4, 3, 4, 3, 1, 2, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8,10, 2, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 2, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 2, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 2, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 2, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 2, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 2, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 2, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 5, 8, 10, 25)
+            self.possible_subunits = 9
 
+        if type in [self.types[x] for x in ['ci', 'oi', 'cic', 'oic']]:
+            self.fieldwidths1 = (28, 14, 4, 3, 8, 198)
+            self.fieldwidths = (7, 7, 2, 2, 2, 4, 5, 4, 2, 3, 5, 1, 1, 2, 2, 3, 1, 2, 4, 11, 14, 4, 2, 2, 3, 12, 20, 1, 8, 2, 4, 4, 4, 3, 5, 3, 3, 3, 3, 2, 4, 4, 4, 1, 8, 12, 2, 8, 4, 3, 4, 3, 26)
+            self.row_keys = ['mine_id', 'contractor', 'subunit', 'month_accident', 'day_accident', 'time_accident', 'filler01', 'inspection_office', 'state_code', 'county_code', 'sic', 'filler02', 'canvass', 'underground_location', 'underground_mining_method', 'trade_name_equipment', 'filler03', 'mining_machine', 'filler04', 'equipment_model_number', 'filler05', 'shift_time', 'accident', 'accident_type', 'injuries_reported', 'document_number', 'filler06', 'sex', 'filler07', 'age', 'total_mine_experience', 'total_experience_this_mine', 'regular_job_experience', 'regular_job_title', 'filler08', 'mine_worker_activity', 'source_injury', 'nature_injury', 'part_body', 'degree_injury', 'days_away_work', 'restricted_work_activity', 'days_lost_work', 'permanently_transferred', 'date_returned_work', 'close_case_injury_document_number', 'msha_accident_code', 'date_investigation_started', 'update_addition_year', 'update_addition_number', 'update_change_year', 'update_change_number', 'filler09']
 
-def readAE(f):
-    """read MSHA address/employment data from their fixed width files and yield each row of the file as a dict object similar to DictReader.
+        if type in [self.types[x] for x in ['cc', 'oc', 'cic', 'oic']]:
+            self.a = self.row_keys.index('mine_id')
+            self.b = self.row_keys.index('contractor')
+            self.row_keys[self.a], self.row_keys[self.b] = self.row_keys[self.b], self.row_keys[self.a]
 
-    Files found at the following link: http://www.msha.gov/STATS/PART50/P50Y2K/AETABLE.HTM
-    Documentation of said files found here: http://www.msha.gov/STATS/PART50/P50Y2K/P50Y2KHB.PDF
-
-    Args:
-        f (string): a path to an ASCII text file
-
-    Returns:
-        an iterator of 2-tuples; the first element in the tuple is a DictReader-like object for the first row of the file and the second element holds each row after that
-    """
-
-    fieldwidths1 = (7, 7, 14, 4, 3, 8, 833)
-    fieldwidths = (7, 7, 3, 4, 2, 3, 5, 1, 1, 2, 1, 8, 4, 2, 1, 3, 1, 30, 18, 30, 18, 30, 12, 13, 9, 2, 5, 4, 24, 1, 3, 1, 3, 1, 3, 1, 3, 2, 4, 3, 4, 3, 1, 2, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 2, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 2, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 2, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 12, 5, 8, 10, 25)
-
-    print('Reading file: %s' % f)
-    with open(f) as F:
-        # get first line information
-        fmtstring = ''.join('%ds' % x for x in fieldwidths1)
-        parse = Struct(fmtstring).unpack_from        
-        p = [x.strip() for x in parse(F.readline().ljust(876))]
-
-        line_one = {}
-        line_one['constant'] = p[0]
-        line_one['constant'] = p[1]
-        line_one['type_file'] = p[2]         # type of file
-        line_one['year_file'] = int(p[3]) # year of file
-        line_one['update_cycle'] = p[4]
-        line_one['update_date'] = p[5]
-        line_one['filler'] = p[6]
+        if type in [self.types[x] for x in ['cn', 'on', 'ccn', 'ocn']]:
+            self.row1_keys = self.row1_keys.insert(1, 'filler0')
+            self.fieldwidths1 = (17, 1, 14, 4, 3, 8, 355)
+            self.fieldwidths = (12, 1, 1, 3, 1) + (48,)*8
+            self.row_keys = ['document_number', 'type_indicator', 'completion_code', 'narrative_character_count', 'number_narrative_descriptions'] + ['narrative_description_%d' % i for i in range(1, 9)]
         
-        # get rest of the data
-        fmtstring = ''.join('%ds' % x for x in fieldwidths)
-        parse = Struct(fmtstring).unpack_from        
-        for line in F:
-            d = {}
-            p = [x.strip() for x in parse(line.ljust(876))]
+        if type in [self.types[x] for x in ['m']]:
+            self.row1_keys = self.row1_keys.remove('year_file')
+            self.fieldwidths1 = (7, 3, 4, 8, 154)
+            self.fieldwidths = (7, 25, 23, 20, 28, 2, 3, 5, 1, 5, 1, 5, 1, 5, 1, 5, 1, 5, 1, 1, 2, 1, 8, 6, 1, 7, 1, 1, 1, 3)
+            
 
-            # map each column to a pair (key, value)
-            d['mine_id'] = p[0]
-            d['contractor'] = p[1]
-            d['filler01'] = p[2]
-            d['inspection_office'] = p[3]
-            d['state_code'] = p[4]
-            d['county_code'] = p[5]
-            d['sic'] = p[6]
-            d['filler02'] = p[7]
-            d['canvass'] = p[8] # Canvass or Class
-            d['mine_type'] = p[9]
-            d['status_code'] = p[10]
-            d['status_date'] = p[11]
-            d['seam_height'] = num(p[12])
-            d['filler03'] = p[13]
-            d['prior_status_code'] = p[14]
-            d['travel_area'] = p[15]
-            d['mailing_control'] = p[16]
-            d['company_name'] = p[17]
-            d['filler04'] = p[18]
-            d['mine_name'] = p[19] # Mine or Plant Name
-            d['filler05'] = p[20]
-            d['address'] = p[21]     # street or PO Box Number
-            d['filler06'] = p[22]
-            d['city'] = p[23]
-            d['filler07'] = p[24]
-            d['state_abbreviation'] = p[25]
-            d['zip_code'] = p[26]
-            d['filler08'] = p[27]
-            d['county_name'] = p[28]
-            d['injury_flag_q1'] = p[29]
-            d['injury_count_q1'] = p[30]
-            d['injury_flag_q2'] = p[31]
-            d['injury_count_q2'] = p[32]
-            d['injury_flag_q3'] = p[33]
-            d['injury_count_q3'] = p[34]
-            d['injury_flag_q4'] = p[35]
-            d['injury_count_q4'] = p[36]
-            d['work_group'] = p[37]
-            d['update_addition_year'] = p[38]
-            d['update_addition_number'] = p[39]
-            d['update_change_year'] = p[40]
-            d['update_change_number'] = p[41]
-            d['number_subunits'] = p[42] # Number of Subunits
-           
-            # subunits
-            d['subunit_1'] = {}
-            d['subunit_1']['subunit_1_code'] = p[43]
-            d['subunit_1']['document_number_q1'] = p[44]
-            d['subunit_1']['number_employees_q1'] = p[45]
-            d['subunit_1']['employee_hours_q1'] = p[46]
-            d['subunit_1']['tons_production_q1'] = p[47]
-            d['subunit_1']['document_number_q2'] = p[48]
-            d['subunit_1']['number_employees_q2'] = p[49]
-            d['subunit_1']['employee_hours_q2'] = p[50]
-            d['subunit_1']['tons_production_q2'] = p[51]
-            d['subunit_1']['document_number_q3'] = p[52]
-            d['subunit_1']['number_employees_q3'] = p[53]
-            d['subunit_1']['employee_hours_q3'] = p[54]
-            d['subunit_1']['tons_production_q3'] = p[55]
-            d['subunit_1']['document_number_q4'] = p[56]
-            d['subunit_1']['number_employees_q4'] = p[57]
-            d['subunit_1']['employee_hours_q4'] = p[58]
-            d['subunit_1']['tons_production_q4'] = p[59]
+    def genKeys(self):
+        keys = self.row_keys
+        if self.possible_subunits:
+            for u in range(1, self.possible_subunits+1):
+                y = (u,)
+                k = map(lambda z: 'su%d_' % u + z, self.subunit_keys)
+                for q in range(1, 5): # quarters within subunits
+                    y += (q,)*4
+                keys += [i % j for i, j in zip(k, y)]
+        return(keys)
 
-            d['subunit_2'] = {}
-            d['subunit_2']['subunit_2_code'] = p[60]
-            d['subunit_2']['document_number_q1'] = p[61]
-            d['subunit_2']['number_employees_q1'] = p[62]
-            d['subunit_2']['employee_hours_q1'] = p[63]
-            d['subunit_2']['tons_production_q1'] = p[64]
-            d['subunit_2']['document_number_q2'] = p[65]
-            d['subunit_2']['number_employees_q2'] = p[66]
-            d['subunit_2']['employee_hours_q2'] = p[67]
-            d['subunit_2']['tons_production_q2'] = p[68]
-            d['subunit_2']['document_number_q3'] = p[69]
-            d['subunit_2']['number_employees_q3'] = p[70]
-            d['subunit_2']['employee_hours_q3'] = p[71]
-            d['subunit_2']['tons_production_q3'] = p[72]
-            d['subunit_2']['document_number_q4'] = p[73]
-            d['subunit_2']['number_employees_q4'] = p[74]
-            d['subunit_2']['employee_hours_q4'] = p[75]
-            d['subunit_2']['tons_production_q4'] = p[76]
+    def download(self, overwrite = False):
+        files = []
+        mkdir(self.dir, overwrite = overwrite)
+        for url in self.url:
+            file_name = url.split('/')[-1]
+            F = join(self.dir, file_name)
+            files.append(F)
+            try:
+                u = urlopen(url)
+                with open(F, 'wb') as f:
+                    meta = u.info()
+                    file_size = int(meta.getheaders("Content-Length")[0])
+                    print("Downloading: %s Bytes: %s" % (file_name, file_size))
 
-            d['subunit_3'] = {}
-            d['subunit_3']['subunit_3_code'] = p[77]
-            d['subunit_3']['document_number_q1'] = p[78]
-            d['subunit_3']['number_employees_q1'] = p[79]
-            d['subunit_3']['employee_hours_q1'] = p[80]
-            d['subunit_3']['tons_production_q1'] = p[81]
-            d['subunit_3']['document_number_q2'] = p[82]
-            d['subunit_3']['number_employees_q2'] = p[83]
-            d['subunit_3']['employee_hours_q2'] = p[84]
-            d['subunit_3']['tons_production_q2'] = p[85]
-            d['subunit_3']['document_number_q3'] = p[86]
-            d['subunit_3']['number_employees_q3'] = p[87]
-            d['subunit_3']['employee_hours_q3'] = p[88]
-            d['subunit_3']['tons_production_q3'] = p[89]
-            d['subunit_3']['document_number_q4'] = p[90]
-            d['subunit_3']['number_employees_q4'] = p[91]
-            d['subunit_3']['employee_hours_q4'] = p[92]
-            d['subunit_3']['tons_production_q4'] = p[93]
+                    file_size_dl = 0
+                    block_sz = 8192
+                    while True:
+                        buffer = u.read(block_sz)
+                        if not buffer:
+                            break
 
-            d['subunit_4'] = {}
-            d['subunit_4']['subunit_4_code'] = p[94]
-            d['subunit_4']['document_number_q1'] = p[95]
-            d['subunit_4']['number_employees_q1'] = p[96]
-            d['subunit_4']['employee_hours_q1'] = p[97]
-            d['subunit_4']['tons_production_q1'] = p[98]
-            d['subunit_4']['document_number_q2'] = p[99]
-            d['subunit_4']['number_employees_q2'] = p[100]
-            d['subunit_4']['employee_hours_q2'] = p[101]
-            d['subunit_4']['tons_production_q2'] = p[102]
-            d['subunit_4']['document_number_q3'] = p[103]
-            d['subunit_4']['number_employees_q3'] = p[104]
-            d['subunit_4']['employee_hours_q3'] = p[105]
-            d['subunit_4']['tons_production_q3'] = p[106]
-            d['subunit_4']['document_number_q4'] = p[107]
-            d['subunit_4']['number_employees_q4'] = p[108]
-            d['subunit_4']['employee_hours_q4'] = p[109]
-            d['subunit_4']['tons_production_q4'] = p[110]
+                        file_size_dl += len(buffer)
+                        f.write(buffer)
+                        status = r"%10d [%3.2f%%]" % (file_size_dl, file_size_dl * 100./file_size)
+                        status = status + chr(8)*(len(status)+1)
+                        print(status,end='')
 
-            yield line_one, d
+            #handle errors
+            except HTTPError, e:
+                print('HTTP Error:', e.code, url)
+            except URLError, e:
+                print('URL Error:', e.reason, url)
+        return(files)
 
 
-def writeAE(ds):
-    """Read and consolidate into one file all of the self-extracted address/employment files contained within each directory of the list of directories ds.
+    def read(self, f):
+        with open(f) as F:
+            # get first line information
+            line_length = sum(self.fieldwidths1)
+            fmtstring = ''.join('%ds' % x for x in self.fieldwidths1)
+            parse = Struct(fmtstring).unpack_from        
+            p = [x.strip() for x in parse(F.readline().ljust(line_length))]
+            line_one = dict(zip(self.row1_keys, p))
 
-    Args:
-        d (list): list of directories of already self-extracted msha address/employment files
-    
-    Return:
-        writes one .csv per directory where the .csv takes the name of the parent folder of the msha files; 
-    """
+            # get rest of the data
+            line_length = sum(self.fieldwidths)
+            fmtstring = ''.join('%ds' % x for x in self.fieldwidths)
+            parse = Struct(fmtstring).unpack_from
+            for line in F:
+                p = [x.strip() for x in parse(line.ljust(line_length))]
+                d = dict(zip(self.genKeys(), p))
+                yield line_one, d
 
-    for d in ds:
-        with open(join(d, d.split('/')[-1]+'.csv'), 'w') as csvfile:
-            w = csv.writer(csvfile)
-            w.writerow(ae_headers)
-            for f in listdir(d):
-                F = join(d, f)
+
+    def write(self, write_file):
+        with open(join(self.dir, write_file), 'w') as csvfile:
+            fields = ['year_file', 'update_date'] + self.genKeys()
+            w = csv.DictWriter(csvfile, fields)
+            w.writeheader()
+            for f in listdir(self.dir):
+                F = join(self.dir, f)
                 if isfile(F) and 'exe' not in F and 'csv' not in F:
-                    for row in readAE(F):
-                        w.writerow((row[0]['year_file'],row[0]['update_date']) +
-                                   (row[1]['mine_id'],
-                                    row[1]['contractor'],
-                                    row[1]['filler01'],
-                                    row[1]['inspection_office'],
-                                    row[1]['state_code'],
-                                    row[1]['county_code'], row[1]['sic'],
-                                    row[1]['filler02'], row[1]['canvass'],
-                                    row[1]['mine_type'],
-                                    row[1]['status_code'],
-                                    row[1]['status_date'],
-                                    row[1]['seam_height'],
-                                    row[1]['filler03'],
-                                    row[1]['prior_status_code'],
-                                    row[1]['travel_area'],
-                                    row[1]['mailing_control'],
-                                    row[1]['company_name'],
-                                    row[1]['filler04'],
-                                    row[1]['mine_name'],
-                                    row[1]['filler05'], row[1]['address'],
-                                    row[1]['filler06'], row[1]['city'],
-                                    row[1]['filler07'],
-                                    row[1]['state_abbreviation'],
-                                    row[1]['zip_code'], row[1]['filler08'],
-                                    row[1]['county_name'],
-                                    row[1]['injury_flag_q1'],
-                                    row[1]['injury_count_q1'],
-                                    row[1]['injury_flag_q2'],
-                                    row[1]['injury_count_q2'],
-                                    row[1]['injury_flag_q3'],
-                                    row[1]['injury_count_q3'],
-                                    row[1]['injury_flag_q4'],
-                                    row[1]['injury_count_q4'],
-                                    row[1]['work_group'],
-                                    row[1]['update_addition_year'],
-                                    row[1]['update_addition_number'],
-                                    row[1]['update_change_year'],
-                                    row[1]['update_change_number'],
-                                    row[1]['number_subunits'],
-                                    row[1]['subunit_1']['subunit_1_code'],
-                                    row[1]['subunit_1']['document_number_q1'],
-                                    row[1]['subunit_1']['number_employees_q1'],
-                                    row[1]['subunit_1']['employee_hours_q1'],
-                                    row[1]['subunit_1']['tons_production_q1'],
-                                    row[1]['subunit_1']['document_number_q2'],
-                                    row[1]['subunit_1']['number_employees_q2'],
-                                    row[1]['subunit_1']['employee_hours_q2'],
-                                    row[1]['subunit_1']['tons_production_q2'],
-                                    row[1]['subunit_1']['document_number_q3'],
-                                    row[1]['subunit_1']['number_employees_q3'],
-                                    row[1]['subunit_1']['employee_hours_q3'],
-                                    row[1]['subunit_1']['tons_production_q3'],
-                                    row[1]['subunit_1']['document_number_q4'],
-                                    row[1]['subunit_1']['number_employees_q4'],
-                                    row[1]['subunit_1']['employee_hours_q4'],
-                                    row[1]['subunit_1']['tons_production_q4'],
-                                    row[1]['subunit_2']['subunit_2_code'],
-                                    row[1]['subunit_2']['document_number_q1'],
-                                    row[1]['subunit_2']['number_employees_q1'],
-                                    row[1]['subunit_2']['employee_hours_q1'],
-                                    row[1]['subunit_2']['tons_production_q1'],
-                                    row[1]['subunit_2']['document_number_q2'],
-                                    row[1]['subunit_2']['number_employees_q2'],
-                                    row[1]['subunit_2']['employee_hours_q2'],
-                                    row[1]['subunit_2']['tons_production_q2'],
-                                    row[1]['subunit_2']['document_number_q3'],
-                                    row[1]['subunit_2']['number_employees_q3'],
-                                    row[1]['subunit_2']['employee_hours_q3'],
-                                    row[1]['subunit_2']['tons_production_q3'],
-                                    row[1]['subunit_2']['document_number_q4'],
-                                    row[1]['subunit_2']['number_employees_q4'],
-                                    row[1]['subunit_2']['employee_hours_q4'],
-                                    row[1]['subunit_2']['tons_production_q4'],
-                                    row[1]['subunit_3']['subunit_3_code'],
-                                    row[1]['subunit_3']['document_number_q1'],
-                                    row[1]['subunit_3']['number_employees_q1'],
-                                    row[1]['subunit_3']['employee_hours_q1'],
-                                    row[1]['subunit_3']['tons_production_q1'],
-                                    row[1]['subunit_3']['document_number_q2'],
-                                    row[1]['subunit_3']['number_employees_q2'],
-                                    row[1]['subunit_3']['employee_hours_q2'],
-                                    row[1]['subunit_3']['tons_production_q2'],
-                                    row[1]['subunit_3']['document_number_q3'],
-                                    row[1]['subunit_3']['number_employees_q3'],
-                                    row[1]['subunit_3']['employee_hours_q3'],
-                                    row[1]['subunit_3']['tons_production_q3'],
-                                    row[1]['subunit_3']['document_number_q4'],
-                                    row[1]['subunit_3']['number_employees_q4'],
-                                    row[1]['subunit_3']['employee_hours_q4'],
-                                    row[1]['subunit_3']['tons_production_q4'],
-                                    row[1]['subunit_4']['subunit_4_code'],
-                                    row[1]['subunit_4']['document_number_q1'],
-                                    row[1]['subunit_4']['number_employees_q1'],
-                                    row[1]['subunit_4']['employee_hours_q1'],
-                                    row[1]['subunit_4']['tons_production_q1'],
-                                    row[1]['subunit_4']['document_number_q2'],
-                                    row[1]['subunit_4']['number_employees_q2'],
-                                    row[1]['subunit_4']['employee_hours_q2'],
-                                    row[1]['subunit_4']['tons_production_q2'],
-                                    row[1]['subunit_4']['document_number_q3'],
-                                    row[1]['subunit_4']['number_employees_q3'],
-                                    row[1]['subunit_4']['employee_hours_q3'],
-                                    row[1]['subunit_4']['tons_production_q3'],
-                                    row[1]['subunit_4']['document_number_q4'],
-                                    row[1]['subunit_4']['number_employees_q4'],
-                                    row[1]['subunit_4']['employee_hours_q4'],
-                                    row[1]['subunit_4']['tons_production_q4']))
-    return()
+                    for row in self.read(F):
+                        row[1].update({'year_file': row[0]['year_file'],
+                                       'update_date': row[0]['update_date']})
+                        w.writerow(row[1])
+        return
+
 
 if __name__ == '__main__':
 
     # main directories to download / read / write data to
-    d = ['/Users/easy-e/Downloads/msha/coal',
-         '/Users/easy-e/Downloads/msha/other',
-         '/Users/easy-e/Downloads/msha/coal_contractor',
-         '/Users/easy-e/Downloads/msha/other_contractor']
+    base = '/Users/easy-e/Downloads/msha'
+    t = ['coal', 'other', 'coal_contractor', 'other_contractor', 'coal_injury', 'other_injury', 'coal_injury_contractor', 'other_injury_contractor']
+    d = [join(base, x) for x in t]
 
-    # download
-    # f = downloadAE(d[0], range(1983, 2014), coal = True)
-    # f = downloadAE(d[1], range(1983, 2014), coal = False, other = True)
-    # f = downloadAE(d[2], range(1983, 2014), coal = False, coal_contractors = True)
-    # f = downloadAE(d[3], range(1983, 2014),  coal = False, other_contractors = True)
-
-    # csv
-    # writeAE(d)
-    
-
-
+    for i in range(5, 6):
+        c = MSHA(t[i], range(1983, 2014), d[i])
+        c.download()
+        # c.write(t[i] + '.csv')

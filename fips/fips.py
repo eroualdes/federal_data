@@ -164,10 +164,5 @@ cew_file = '2012.annual.singlefile'
 
 
 if __name__ == '__main__':
-
-
-
-
-
-
+    print('hello')
 

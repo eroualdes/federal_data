@@ -4,7 +4,7 @@ setup.py
 aux/__init__.py
 aux/auxiliary.py
 aux/utilities.py
-fips/__inti__.py
+fips/__intit__.py
 fips/fips.py
 msha/__init__.py
 msha/mongo_msha.py

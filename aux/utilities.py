@@ -27,7 +27,8 @@ def mkdir(path, overwrite):
                 rmtree(path)
                 makedirs(path)
             else:
-                exit('Please delete or move the directory \'%s\' and try again.' % path)
+                print('Please delete or move the directory \'%s\' and try again.' % path)
+                return
         else:
             raise
     return
