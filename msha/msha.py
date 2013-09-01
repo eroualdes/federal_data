@@ -9,6 +9,7 @@ from sys import exit
 from pymongo import MongoClient
 from urllib2 import urlopen, URLError, HTTPError
 import csv
+import re
 from aux.auxiliary import states, ae_headers
 from aux.utilities import *
 
@@ -58,7 +59,7 @@ class MSHA:
         if type == self.types['ocn']:
             self.s = '%d/mctn%d.exe'
         if type == self.types['m']:
-            self.url = 'http://www.msha.gov/STATS/PART50/P50Y2K/MIF/mif.exe'
+            self.url = ['http://www.msha.gov/STATS/PART50/P50Y2K/MIF/mif.exe']
 
         if not self.url:
             self.url  = [self.baseURL + self.s % (y, y) for y in years]
@@ -91,15 +92,16 @@ class MSHA:
             self.row_keys[self.a], self.row_keys[self.b] = self.row_keys[self.b], self.row_keys[self.a]
 
         if type in [self.types[x] for x in ['cn', 'on', 'ccn', 'ocn']]:
-            self.row1_keys = self.row1_keys.insert(1, 'filler0')
+            self.row1_keys.insert(1, 'filler0')
             self.fieldwidths1 = (17, 1, 14, 4, 3, 8, 355)
             self.fieldwidths = (12, 1, 1, 3, 1) + (48,)*8
             self.row_keys = ['document_number', 'type_indicator', 'completion_code', 'narrative_character_count', 'number_narrative_descriptions'] + ['narrative_description_%d' % i for i in range(1, 9)]
         
         if type in [self.types[x] for x in ['m']]:
-            self.row1_keys = self.row1_keys.remove('year_file')
+            self.row1_keys.remove('year_file')
             self.fieldwidths1 = (7, 3, 4, 8, 154)
             self.fieldwidths = (7, 25, 23, 20, 28, 2, 3, 5, 1, 5, 1, 5, 1, 5, 1, 5, 1, 5, 1, 1, 2, 1, 8, 6, 1, 7, 1, 1, 1, 3)
+            self.row_keys = ['mine_id', 'company_name', 'filler01', 'entity_name', 'filler02', 'state_code', 'county_code', 'primary_sic', 'filler03', 'secondary_sic1', 'filler04', 'secondary_sic2', 'filler05', 'secondary_sic3', 'filler06', 'secondary_sic4', 'filler07', 'secondary_sic5', 'filler08', 'operation_class', 'filler09', 'status_code', 'status_date', 'latitude', 'filler10', 'longitude', 'filler11', 'number_shops', 'number_plants', 'number_pits']
             
 
     def genKeys(self):
@@ -174,22 +176,43 @@ class MSHA:
             w.writeheader()
             for f in listdir(self.dir):
                 F = join(self.dir, f)
-                if isfile(F) and 'exe' not in F and 'csv' not in F:
+                if isfile(F) and 'exe' not in F and 'csv' not in F and not f.startswith('.'):
+                    year_file = re.match(r"(\w{3})(\d{4})", f).group(2)
                     for row in self.read(F):
-                        row[1].update({'year_file': row[0]['year_file'],
-                                       'update_date': row[0]['update_date']})
+                        if 'year_file' in row[0]:
+                            row[1].update({'year_file': row[0]['year_file'],
+                                           'update_date': row[0]['update_date']})
+                        else:
+                            row[1].update({'year_file': year_file, 
+                                           'update_date': row[0]['update_date']})
                         w.writerow(row[1])
         return
 
 
 if __name__ == '__main__':
 
-    # main directories to download / read / write data to
+    # Notes
+    # since I don't know how to make python extract the self-extracting files
+    # first download files calling MSHA.download() via script, then exit
+    # go extract files yourself
+    # then call script again to read / write files
+
+    # for the master function, be sure to extract files into the directory
+    # specified when initializing the class instance
+
+    # to see what types can initialize class MSHA
+    # print(MSHA.types.values())
+
+    # example
     base = '/Users/easy-e/Downloads/msha'
-    t = ['coal', 'other', 'coal_contractor', 'other_contractor', 'coal_injury', 'other_injury', 'coal_injury_contractor', 'other_injury_contractor']
+    y = range(1983, 2014)
+    t = [x for x in MSHA.types.values() if 'narrative' in x]
     d = [join(base, x) for x in t]
 
-    for i in range(5, 6):
-        c = MSHA(t[i], range(1983, 2014), d[i])
-        c.download()
+    # for i in range(0, 4):
+    #     c = MSHA(t[i], y, d[i])
+        # c.download()
         # c.write(t[i] + '.csv')
+
+    c = MSHA('master_index', y, join(base, 'master_index'))
+    c.write('master.csv')
