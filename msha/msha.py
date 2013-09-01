@@ -193,11 +193,11 @@ if __name__ == '__main__':
 
     # Notes
     # since I don't know how to make python extract the self-extracting files
-    # first download files calling MSHA.download() via script, then exit
+    # first download files calling MSHA.download() as below;  exit script
     # go extract files yourself
-    # then call script again to read / write files
+    # call script again to read / write files
 
-    # for the master function, be sure to extract files into the directory
+    # for the master index, be sure to extract files into the directory
     # specified when initializing the class instance
 
     # to see what types can initialize class MSHA
@@ -209,10 +209,8 @@ if __name__ == '__main__':
     t = [x for x in MSHA.types.values() if 'narrative' in x]
     d = [join(base, x) for x in t]
 
-    # for i in range(0, 4):
-    #     c = MSHA(t[i], y, d[i])
-        # c.download()
+    for i in range(0, 4):
+        c = MSHA(t[i], y, d[i])
+        c.download()
         # c.write(t[i] + '.csv')
 
-    c = MSHA('master_index', y, join(base, 'master_index'))
-    c.write('master.csv')
