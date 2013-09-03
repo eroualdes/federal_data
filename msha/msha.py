@@ -177,12 +177,15 @@ class MSHA:
             for f in listdir(self.dir):
                 F = join(self.dir, f)
                 if isfile(F) and 'exe' not in F and 'csv' not in F and not f.startswith('.'):
-                    year_file = re.match(r"(\w{3})(\d{4})", f).group(2)
+                    r = re.match(r"(\w{3})(\d{4})", f)
+                    if r:
+                        year_file = r.group(2)
                     for row in self.read(F):
                         if 'year_file' in row[0]:
                             row[1].update({'year_file': row[0]['year_file'],
                                            'update_date': row[0]['update_date']})
                         else:
+
                             row[1].update({'year_file': year_file, 
                                            'update_date': row[0]['update_date']})
                         w.writerow(row[1])
@@ -206,11 +209,11 @@ if __name__ == '__main__':
     # example
     base = '/Users/easy-e/Downloads/msha'
     y = range(1983, 2014)
-    t = [x for x in MSHA.types.values() if 'narrative' in x]
+    t = MSHA.types.values()
     d = [join(base, x) for x in t]
 
-    for i in range(0, 4):
+    for i in range(0, len(t)):
         c = MSHA(t[i], y, d[i])
-        c.download()
-        # c.write(t[i] + '.csv')
+        # c.download()
+        c.write(t[i] + '.csv')
 
