@@ -1,5 +1,6 @@
 .gitignore
 *.pyc
 *.doc
+*.csv
 .DS_Store
 
