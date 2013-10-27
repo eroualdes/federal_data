@@ -1,8 +1,5 @@
 .gitignore
 *.pyc
 *.doc
-play.py
 .DS_Store
-/build
-/dist
-mongo*
+

@@ -6,12 +6,12 @@ from os.path import join, basename, isfile, splitext, abspath
 from os import makedirs, listdir
 from struct import Struct
 from sys import exit
-from pymongo import MongoClient
 from urllib2 import urlopen, URLError, HTTPError
 import csv
 import re
-from aux.auxiliary import states, ae_headers
-from aux.utilities import *
+from auxiliary import states, ae_headers
+from utilities import *
+from copy import deepcopy
 
 class MSHA:
     """A class to handle downloading, reading, and writing MSHA data."""
@@ -105,7 +105,7 @@ class MSHA:
             
 
     def genKeys(self):
-        keys = self.row_keys
+        keys = deepcopy(self.row_keys)
         if self.possible_subunits:
             for u in range(1, self.possible_subunits+1):
                 y = (u,)
