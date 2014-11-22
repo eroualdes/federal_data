@@ -5,6 +5,7 @@
 *.db
 *.sql
 build.py
+notes.org
 
 ### OS Files ###
 .DS_Store

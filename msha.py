@@ -9,8 +9,8 @@ from sys import exit
 from urllib2 import urlopen, URLError, HTTPError
 import csv
 import re
-from auxiliary import states, ae_headers
-from utilities import *
+from util.names import states, ae_headers
+from util.utilities import *
 from copy import deepcopy
 
 class MSHA:
@@ -207,13 +207,13 @@ if __name__ == '__main__':
     # print(MSHA.types.values())
 
     # example
-    base = '/Users/easy-e/Downloads/msha'
-    y = range(1983, 2014)
-    t = MSHA.types.values()
-    d = [join(base, x) for x in t]
+base = '/Users/easy-e/Downloads/msha'
+y = range(1983, 2014)
+t = MSHA.types.values()
+d = [join(base, x) for x in t]
 
-    for i in range(0, len(t)):
-        c = MSHA(t[i], y, d[i])
-        # c.download()
-        c.write(t[i] + '.csv')
+    # for i in range(0, len(t)):
+    #     c = MSHA(t[i], y, d[i])
+    #     # c.download()
+    #     c.write(t[i] + '.csv')
 
