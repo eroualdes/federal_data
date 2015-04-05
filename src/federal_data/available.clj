@@ -1,17 +1,10 @@
-; This file is part of federal_data.
-; 
-; federal_data is free software: you can redistribute it and/or modify
-; it under the terms of the GNU General Public License as published by
-; the Free Software Foundation, either version 3 of the License, or
-; (at your option) any later version.
-; 
-; federal_data is distributed in the hope that it will be useful,
-; but WITHOUT ANY WARRANTY; without even the implied warranty of
-; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-; GNU General Public License for more details.
-; 
-; You should have received a copy of the GNU General Public License
-; along with federal_data.  If not, see <http://www.gnu.org/licenses/>.
+;   Copyright (c) Edward A. Roualdes. All rights reserved.
+;   The use and distribution terms for this software are covered by the
+;   Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
+;   which can be found in the file epl-v10.html at the root of this distribution.
+;   By using this software in any fashion, you are agreeing to be bound by
+;   the terms of this license.
+;   You must not remove this notice, or any other, from this software.
 
 (ns federal-data.available
   (:require [clojure.string :as string]
@@ -24,8 +17,10 @@
 (defn available
   "Print available data."
   ([]
-     (let [ags (string/join ", " (keys A/Agencys))]
-      (println "federal_data from the following agencies:" ags)))
+   (let [ags (->> (keys A/Agencys)
+                 (map string/upper-case)
+                 (string/join ", "))]
+      (println "Federal data available from the following agencies:" ags)))
   ([agency]
      (if (nil? agency)
        (available)

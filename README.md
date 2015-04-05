@@ -1,26 +1,16 @@
 # federal_data
 
-One part Quandl + one part DATA.GOV + APIs aren't for everybody = analysis ready federal data. (alpha: only downloads data from select agencies.)
+One part Quandl + one part DATA.GOV + APIs aren't for everybody = analysis ready federal data (fd-1.0.0-alpha).
 
-## Installation
-
-Put the file ./target/fd.jar somewhere and call it as per below.
-
-## Usage
+Clone repository and build with `lein uberjar`.  Print help screen with
 
 ```
-$ java -jar fd.jar action -a AGENCY -f FOLDER
+$ java -jar target/fd.jar --help
 ```
 
-Print help from the program itself with
-
-```
-$ java -jar fd.jar --help
-```
+or see [doc/intro.md](https://github.com/roualdes/federal_data/blob/master/doc/intro.md) for better instructions.
 
 ## License
-
 Copyright © 2015 Edward A. Roualdes
-
-Distributed under the GPLv3.
+Distributed under the EPL-1.0.
 

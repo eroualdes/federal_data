@@ -1,17 +1,10 @@
-; This file is part of federal_data.
-; 
-; federal_data is free software: you can redistribute it and/or modify
-; it under the terms of the GNU General Public License as published by
-; the Free Software Foundation, either version 3 of the License, or
-; (at your option) any later version.
-; 
-; federal_data is distributed in the hope that it will be useful,
-; but WITHOUT ANY WARRANTY; without even the implied warranty of
-; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-; GNU General Public License for more details.
-; 
-; You should have received a copy of the GNU General Public License
-; along with federal_data.  If not, see <http://www.gnu.org/licenses/>.
+;   Copyright (c) Edward A. Roualdes. All rights reserved.
+;   The use and distribution terms for this software are covered by the
+;   Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
+;   which can be found in the file epl-v10.html at the root of this distribution.
+;   By using this software in any fashion, you are agreeing to be bound by
+;   the terms of this license.
+;   You must not remove this notice, or any other, from this software.
 
 (ns federal-data.download
   (:require [clojure.java.io :as io]
@@ -21,21 +14,24 @@
 (def ^:dynamic *d-cntr* "Counter for downloading files" (atom 0))
 (def ^:dynamic *d-tot* "Total number of files to download" (atom 0))
 
+(defn dl-ing []
+  "Update user that downloading is happening by printing to console."
+  (printf "\rDownloading files... %s/%s." @*d-cntr* @*d-tot*)
+  (flush))
+
 (defn copy [from to]
   (with-open [in (io/input-stream from)
               out (io/output-stream to)]
     (io/copy in out))
   (swap! *d-cntr* inc)
-  (printf "\rDownloading files... %s/%s." @*d-cntr* @*d-tot*)
-  (flush))
+  (dl-ing))
 
 (defn download-urls [urls dir]
   (let [nurls (swap! *d-tot* + (count urls))
         furls (map io/file urls)
         names (map #(.getName ^java.io.File %) furls)
         files (map io/file (repeat dir) names)]
-    (printf "\rDownloading files... %s/%s." @*d-cntr* @*d-tot*)
-    (flush)
+    (dl-ing)
     (doall (pmap copy urls files))))
 
 (defn prep-urls
@@ -71,9 +67,18 @@
         urls (map #(str (:data-base agency) %) ends)]
     (download-urls urls dir)))
 
+(defn ftp-get [client]
+  (let [cl client]
+    (fn [x y]
+      (ftp/client-get cl x y)
+      (swap! *d-cntr* inc)
+      (dl-ing))))
+
 (defmethod download :noaa [agency dir]
   (let [urls (-> agency :data vals)
         nurls (swap! *d-tot* + (count urls))
         files (map io/file (repeat dir) urls)]
+    (dl-ing)
     (ftp/with-ftp [client (agency :client)]
-      (doall (map #(ftp/client-get client %1 %2) urls files)))))
+      (let [dl (ftp-get client)]
+        (doall (map dl urls files))))))

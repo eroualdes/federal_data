@@ -1,17 +1,10 @@
-; This file is part of federal_data.
-; 
-; federal_data is free software: you can redistribute it and/or modify
-; it under the terms of the GNU General Public License as published by
-; the Free Software Foundation, either version 3 of the License, or
-; (at your option) any later version.
-; 
-; federal_data is distributed in the hope that it will be useful,
-; but WITHOUT ANY WARRANTY; without even the implied warranty of
-; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-; GNU General Public License for more details.
-; 
-; You should have received a copy of the GNU General Public License
-; along with federal_data.  If not, see <http://www.gnu.org/licenses/>.
+;   Copyright (c) Edward A. Roualdes. All rights reserved.
+;   The use and distribution terms for this software are covered by the
+;   Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
+;   which can be found in the file epl-v10.html at the root of this distribution.
+;   By using this software in any fashion, you are agreeing to be bound by
+;   the terms of this license.
+;   You must not remove this notice, or any other, from this software.
 
 (ns federal-data.Agencys
   (:require [federal-data.cli :as cli]
@@ -55,7 +48,7 @@
                   :inventory "ghcnd-inventory.txt",
                   :states "ghcnd-states.txt",
                   :stations "ghcnd-stations.txt",
-                  :countires "ghcnd-countries.txt"}})
+                  :countries "ghcnd-countries.txt"}})
 
 (def EPA {:agency :epa,
           :home "http://www.epa.gov/airquality/airdata/index.html",
@@ -78,11 +71,8 @@
   "Does fd know how to work with user specified Agency:dataset?"
   (let [sp (string/split Ads #":")
         ag (first sp) Ag (Agencys ag)
-        ds (last sp) Ds (keyword ds)
-        emsg (format "fd doesn't know how to work with %s or %s" ag ds)]
-    (if (and Ag (contains? (Ag :data) Ds))
-      [Ag Ds]
-      (cli/exit 1 (cli/error-msg emsg)))))
+        ds (rest sp) Ds (mapv keyword ds)]
+    [Ag Ds]))
 
 (defn fselect-keys [map keyseq]
   (let [m (select-keys map keyseq)]
@@ -93,4 +83,4 @@
   (if-let [v (Agency? Ads)]
     (let [Ag (first v)]
       (merge (dissoc Ag :data)
-             {:data (fselect-keys (:data Ag) [(last v)])}))))
+             {:data (fselect-keys (:data Ag) (last v))}))))
