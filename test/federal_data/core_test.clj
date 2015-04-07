@@ -7,21 +7,30 @@
 ;   You must not remove this notice, or any other, from this software.
 
 (ns federal-data.core-test
-  (:require [clojure.test :as ct]
+  (:require [clojure.test :refer :all]
             [federal-data.download :as dl]
-            [federal-data.Agencys :as A]))
+            [federal-data.Agencys :as A]
+            [clj-http.lite.client :as http]))
 
-(deftest a-test
-  (testing "FIXME, I fail."
-    (is (= 0 1))))
-;;; will URLs work? does this have further implications? file type?
+;;; do URLs work? does this have further implications? file type?
+(defn check-url [url]
+  "Check url without downloading body."
+  (let [status (:status (http/head url))]
+    (if (= 200 status)
+      true
+      false)))
 
-(defn check-urls [xs]
-  (map #(:header @(-> % http/get)) xs))
+(defmacro check-agency [ag]
+  "Check all urls for Agency ag such that each failed url is print to stderr."
+  `(testing '~ag
+     (are [url] (true? (check-url url))
+          ~@(dl/prep (A/Agencys ag)))))
 
-(deftest urls-exist
-  (testing "BLS"
-    (true? (not (empty? )))))
-
+(deftest URLs-exist?
+  (check-agency "msha")
+  (check-agency "bls")
+  (check-agency "epa"))
 
 ;;; process-agency given a Agency:dataset (Ads) specification?
+
+

@@ -8,7 +8,7 @@
 
 (ns federal-data.download
   (:require [clojure.java.io :as io]
-            [org.httpkit.client :as http]
+            [clj-http.lite.client :as http]
             [miner.ftp :as ftp]))
 
 (def ^:dynamic *d-cntr* "Counter for downloading files." (atom 0))
@@ -31,7 +31,7 @@
   "Return list of urls by scanning agency's sites 
   with agency's regexed-urls."
   [site regs]
-  (let [content (:body @(-> site http/get))]
+  (let [content (:body (-> site http/get))]
     (loop [r regs
            result []]
       (if (empty? r)
@@ -43,7 +43,7 @@
 
 (defmethod prep :msha [agency]
   (let [ends (-> agency :data vals)
-        urls (map #(str (:data-base) %) ends)]
+        urls (map #(str (:data-base agency) %) ends)]
     urls))
 
 (defmethod prep :bls [agency]

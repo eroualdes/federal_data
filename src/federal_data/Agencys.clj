@@ -16,7 +16,7 @@
    :docs "http://www.msha.gov/STATS/PART50/P50Y2K/P50Y2KHB.PDF",
    :data-main "http://www.msha.gov/OpenGovernmentData/OGIMSHA.asp",
    :data-base "http://www.msha.gov/OpenGovernmentData/DataSets/",
-   :data {:accident_injury "DataSets/Accidents.zip",
+   :data {:accident_injury "Accidents.zip",
           :area "AreaSamples.zip",
           :coal_dust "CoalDustSamples.zip",
           :conferenes "Conferences.zip",

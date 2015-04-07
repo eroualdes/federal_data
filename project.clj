@@ -13,7 +13,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/tools.cli "0.3.1"]
-                 [http-kit "2.1.16"]
+                 [clj-http-lite "0.2.1"]
                  [com.velisco/clj-ftp "0.3.3"]]
   :plugins [[cider/cider-nrepl "0.8.2"]]
   :main ^:skip-aot federal-data.core
