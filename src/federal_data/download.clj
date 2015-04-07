@@ -11,8 +11,8 @@
             [org.httpkit.client :as http]
             [miner.ftp :as ftp]))
 
-(def ^:dynamic *d-cntr* "Counter for downloading files" (atom 0))
-(def ^:dynamic *d-tot* "Total number of files to download" (atom 0))
+(def ^:dynamic *d-cntr* "Counter for downloading files." (atom 0))
+(def ^:dynamic *d-tot* "Total number of files to download." (atom 0))
 
 (defn dl-ing []
   "Update user that downloading is happening by printing to console."
@@ -20,25 +20,18 @@
   (flush))
 
 (defn copy [from to]
+  "Copy file into from/to specified locations."
   (with-open [in (io/input-stream from)
               out (io/output-stream to)]
     (io/copy in out))
   (swap! *d-cntr* inc)
   (dl-ing))
 
-(defn download-urls [urls dir]
-  (let [nurls (swap! *d-tot* + (count urls))
-        furls (map io/file urls)
-        names (map #(.getName ^java.io.File %) furls)
-        files (map io/file (repeat dir) names)]
-    (dl-ing)
-    (doall (pmap copy urls files))))
-
-(defn prep-urls
-  "Scan url of agencies with regexes for their :data urls to fill in
-  regexes.  Return a list of domainless urls."
-  [url regs]
-  (let [content (:body @(-> url http/get))]
+(defn find-urls
+  "Return list of urls by scanning agency's sites 
+  with agency's regexed-urls."
+  [site regs]
+  (let [content (:body @(-> site http/get))]
     (loop [r regs
            result []]
       (if (empty? r)
@@ -46,39 +39,67 @@
         (recur (rest r)
                (into result (mapv first (re-seq (first r) content))))))))
 
-(defmulti download :agency)
+(defmulti prep "Prepare agency's urls." :agency)
 
-(defmethod download :msha [agency dir]
-  (let [urls (-> agency :data vals)]
-    (download-urls urls dir)))
+(defmethod prep :msha [agency]
+  (let [ends (-> agency :data vals)
+        urls (map #(str (:data-base) %) ends)]
+    urls))
 
-(defmethod download :bls [agency dir]
+(defmethod prep :bls [agency]
   (let [site (:data-main agency)
         regs (-> agency :data vals)
-        ends (prep-urls site regs)
+        ends (find-urls site regs)
         urls (map #(str (:home agency) %) ends)]
-    (download-urls urls dir)))
+    urls))
 
-(defmethod download :epa [agency dir]
+(defmethod prep :epa [agency]
   (let [site (:data-main agency)
         dat (:data agency)
-        regs (into (-> dat :gases vals) (-> dat :meterological vals))
-        ends (prep-urls site regs)
+        regs (into (-> dat :gases vals)
+                   (-> dat :meterological vals))
+        ends (find-urls site regs)
         urls (map #(str (:data-base agency) %) ends)]
-    (download-urls urls dir)))
+    urls))
+
+(defmethod prep :noaa [agency]
+  (let [urls (-> agency :data vals)
+        nurls (swap! *d-tot* + (count urls))]
+    urls))
+
+(defmulti download :conn)
+
+(defn download-urls-http [urls dir]
+  "Download urls into dir from http connection."
+  (let [nurls (swap! *d-tot* + (count urls))
+        furls (map io/file urls)
+        names (map #(.getName ^java.io.File %) furls)
+        files (map io/file (repeat dir) names)]
+    (dl-ing)
+    (doall (pmap copy urls files))))
+
+(defmethod download :http [agency dir]
+  "http/download agency's data into dir."
+  (download-urls-http (prep agency) dir))
 
 (defn ftp-get [client]
+  "Return function that downloads from ftp and informs user about status."
   (let [cl client]
     (fn [x y]
       (ftp/client-get cl x y)
       (swap! *d-cntr* inc)
       (dl-ing))))
 
-(defmethod download :noaa [agency dir]
-  (let [urls (-> agency :data vals)
-        nurls (swap! *d-tot* + (count urls))
-        files (map io/file (repeat dir) urls)]
-    (dl-ing)
-    (ftp/with-ftp [client (agency :client)]
-      (let [dl (ftp-get client)]
-        (doall (map dl urls files))))))
+(defn download-urls-ftp [client urls files]
+  "Download urls into files from ftp connection."
+  (dl-ing)
+  (ftp/with-ftp [cl client]
+    (let [dl (ftp-get cl)]
+      (doall (map dl urls files)))))
+
+(defmethod download :ftp [agency dir]
+  "ftp/download agency's data into dir."
+  (let [urls (prep agency)
+        files (map io/file (repeat dir) urls)
+        client (agency :client)]
+    (download-urls-ftp client urls files)))

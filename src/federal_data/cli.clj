@@ -11,8 +11,7 @@
             [clojure.string :as string]))
 
 (def cli-options
-  [["-h" "--help" "print this message and exit"]
-   ["-a" "--agency AGENCY" "acronym of agency of interest"
+  [["-a" "--agency AGENCY" "acronym of agency of interest"
     :parse-fn #(string/lower-case (str %))]
    ["-f" "--folder FOLDER" "folder to store agency data, absolute path"
     :parse-fn #(str %)]])
@@ -21,12 +20,11 @@
   (->> ["federal_data => analysis ready\n"
         "Usage: java -jar fd.jar action -a AGENCY -f FOLDER\n"
         "Actions:"
-        "  available\t list of agencies federal_data plays nicely with"
+        "  available\t list of agencies federal_data understands"
         "  download\t download agency data"
-        "  help\t\t print this message and exit"
         "\nArguments:"
         options-summary
-        "\nSee README for more information."]
+        "\nSee http://roualdes.us/docs for more information."]
        (string/join \newline)))
 
 (defn error-msg [error]

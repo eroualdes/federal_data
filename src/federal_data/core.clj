@@ -27,9 +27,9 @@
           ag (:agency options)
           fldr (:folder options)]
      (case act
-       "d" (do (println "Flags" options) (download (A/process-agency ag) fldr))
-       "a" (do (println "Flags" options) (available ag))
-       "h" (cli/exit 0 (cli/usage summary))
+       "d" (do (println "Flags" options)
+               (download (A/process-agency ag) fldr))
+       "a" (available ag)
        "t" (println ((A/Agencys ag) :data))
        "No action specified.")))
   (shutdown-agents)
