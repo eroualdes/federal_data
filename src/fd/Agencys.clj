@@ -1,4 +1,4 @@
-;   Copyright (c) Edward A. Roualdes. All rights reserved.
+;   Copyright (c) 2015 Edward A. Roualdes. All rights reserved.
 ;   The use and distribution terms for this software are covered by the
 ;   Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
 ;   which can be found in the file epl-v10.html at the root of this distribution.
@@ -6,8 +6,8 @@
 ;   the terms of this license.
 ;   You must not remove this notice, or any other, from this software.
 
-(ns federal-data.Agencys
-  (:require [federal-data.cli :as cli]
+(ns fd.Agencys
+  (:require [fd.cli :as cli]
             [clojure.string :as string]))
 
 (def MSHA

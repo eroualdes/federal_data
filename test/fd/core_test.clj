@@ -6,10 +6,10 @@
 ;   the terms of this license.
 ;   You must not remove this notice, or any other, from this software.
 
-(ns federal-data.core-test
+(ns fd.core-test
   (:require [clojure.test :refer :all]
-            [federal-data.download :as dl]
-            [federal-data.Agencys :as A]
+            [fd.download :as dl]
+            [fd.Agencys :as A]
             [clj-http.lite.client :as http]))
 
 ;;; do URLs work? does this have further implications? file type?

@@ -1,4 +1,4 @@
-;   Copyright (c) Edward A. Roualdes. All rights reserved.
+;   Copyright (c) 2015 Edward A. Roualdes. All rights reserved.
 ;   The use and distribution terms for this software are covered by the
 ;   Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
 ;   which can be found in the file epl-v10.html at the root of this distribution.
@@ -6,13 +6,13 @@
 ;   the terms of this license.
 ;   You must not remove this notice, or any other, from this software.
 
-(ns federal-data.core
+(ns fd.core
   (:require [clojure.java.io :as io]
             [clojure.string :as string]
-            [federal-data.Agencys :as A]
-            [federal-data.download :refer [download]]
-            [federal-data.available :refer [available]]
-            [federal-data.cli :as cli])
+            [fd.Agencys :as A]
+            [fd.download :refer [download]]
+            [fd.available :refer [available]]
+            [fd.cli :as cli])
   (:gen-class))
 (set! *warn-on-reflection* true)
 

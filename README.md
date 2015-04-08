@@ -1,4 +1,4 @@
-# federal_data
+# `fd`
 
 One part Quandl + one part DATA.GOV + APIs aren't for everybody = analysis ready federal data (fd-0.1.0-alpha).
 
