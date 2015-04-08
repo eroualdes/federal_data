@@ -8,19 +8,24 @@
 
 (ns fd.cli
   (:require [clojure.tools.cli :refer [parse-opts]]
-            [clojure.string :as string]))
+            [fd.Agencys :as A]
+            [clojure.string :as string]
+            [clojure.java.io :as io]))
 
 (def cli-options
   [["-a" "--agency AGENCY" "acronym of agency of interest"
-    :parse-fn #(string/lower-case (str %))]
+    :parse-fn #(string/lower-case (str %))
+    :validate [#(contains? A/Agencys (first (string/split % #":"))) "fd doesn't understand agency."]]
    ["-f" "--folder FOLDER" "folder to store agency data, absolute path"
-    :parse-fn #(str %)]])
+    :parse-fn #(str %)
+    :validate [#(.exists (io/file %)) "Folder must exist."]]
+   ["-h" "--help" "print this message and exit"]])
 
 (defn usage [options-summary]
   (->> ["\nfd => analysis ready federal data\n"
         "Usage: java -jar fd.jar action -a AGENCY -f FOLDER\n"
         "Actions:"
-        "  available\t list of agencies fd understands"
+        "  available\t print list of agencies fd understands"
         "  download\t download agency data"
         "\nArguments:"
         options-summary

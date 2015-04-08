@@ -7,9 +7,7 @@
 ;   You must not remove this notice, or any other, from this software.
 
 (ns fd.core
-  (:require [clojure.java.io :as io]
-            [clojure.string :as string]
-            [fd.Agencys :as A]
+  (:require [fd.Agencys :as A]
             [fd.download :refer [download]]
             [fd.available :refer [available]]
             [fd.cli :as cli])

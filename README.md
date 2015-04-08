@@ -1,6 +1,6 @@
 # `fd`
 
-One part Quandl + one part DATA.GOV + APIs aren't for everybody = analysis ready federal data (fd-0.1.0-alpha).
+fd is a command-line application that provides analysis ready federal data: one part [Quandl](http://www.quandl.com/) + one part [DATA.GOV](http://www.data.gov/) + APIs aren't for everybody = data in [CSV](http://en.wikipedia.org/wiki/Comma-separated_values) format.  Currently, this project downloads only some of the available data from a select group of federal agencies.
 
 Clone repository and build with `lein uberjar`.  Print help screen with
 

@@ -7,8 +7,7 @@
 ;   You must not remove this notice, or any other, from this software.
 
 (ns fd.Agencys
-  (:require [fd.cli :as cli]
-            [clojure.string :as string]))
+  (:require [clojure.string :as string]))
 
 (def MSHA
   {:agency :msha, :conn :http
