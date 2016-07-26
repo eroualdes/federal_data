@@ -1,14 +1,14 @@
-/target
-/classes
-/checkouts
-pom.xml
-pom.xml.asc
-*.jar
-*.class
-/.lein-*
-/.nrepl-port
-.hgignore
-.hg/
+.Python
+.cache/
+__pycache__/
+bin/
+fips.csv
+include/
+lib/
+pip-selfcheck.json
+share/
+test_fd.py
+fd.egg-info
 
 ### OS Files ###
 .DS_Store

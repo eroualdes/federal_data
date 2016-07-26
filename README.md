@@ -1,16 +1,23 @@
-# `fd`
+# fd: analysis ready US federal data
 
-fd is a command-line application that provides analysis ready federal data: one part [Quandl](http://www.quandl.com/) + one part [DATA.GOV](http://www.data.gov/) + APIs aren't for everybody = data in [CSV](http://en.wikipedia.org/wiki/Comma-separated_values) format.  Currently, this project downloads only some of the available data from a select group of federal agencies.
+fd is a command line application that provides analysis ready US federal data: one part [Quandl](http://www.quandl.com/) + one part [DATA.GOV](http://www.data.gov/) + APIs aren't for everybody = data in [CSV](http://en.wikipedia.org/wiki/Comma-separated_values) format.
 
-Clone repository and build with `lein uberjar`.  Print help screen with
+Install `fd` with
 
 ```
-$ java -jar target/fd.jar --help
+$ pip install git+https://github.com/roualdes/fd
 ```
 
-or read better [documentation](roualdes.us/docs).
+Currently, this project downloads only some of the available data from a select group of federal agencies.  Try
+
+```
+$ fd available
+```
+
+## Roadmap
+* add more federal agencies
+* documentation
 
 ## License
-Copyright © 2015 Edward A. Roualdes
-Distributed under the EPL-1.0.
-
+Copyright © 2016 Edward A. Roualdes
+Distributed under the GPLv3.
