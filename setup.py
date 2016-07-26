@@ -9,6 +9,6 @@ setup(
     'requests',
   ],
   entry_points={
-    'console_scripts': ['fd=fd:main']
-  }
+    'console_scripts': ['fd=fd:main'],
+  },
 )

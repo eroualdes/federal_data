@@ -20,4 +20,5 @@ $ fd available
 
 ## License
 Copyright © 2016 Edward A. Roualdes
+
 Distributed under the GPLv3.
