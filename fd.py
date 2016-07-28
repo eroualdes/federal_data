@@ -171,7 +171,8 @@ def bls_cew_consolidate(fdDir):
 
                         # make data types match across chunks
                         chunk = convert_dtypes(chunk, dtypes)
-                        chunk.to_csv(f, header=header, index=False)
+                        chunk.to_csv(f, header=header, index=False,
+                                     float_format='%.2f')
                         header = False
 
     vprint("bls:cew data consolidated\x1b[K.")
@@ -240,7 +241,7 @@ def bls_ce_consolidate(fdDir):
 
     # merge to series
     series = pd.read_table(
-        d / 'ce.series',
+        d/'ce.series',
         dtype={
             'supersector_code': str,
             'data_type_code': str,
@@ -256,7 +257,7 @@ def bls_ce_consolidate(fdDir):
     )
 
     data_type = pd.read_table(
-        d / 'ce.datatype',
+        d/'ce.datatype',
         index_col=False,
         dtype={
             'data_type_code': str,
@@ -267,7 +268,7 @@ def bls_ce_consolidate(fdDir):
     del data_type
 
     industry_type = pd.read_table(
-        d / 'ce.industry',
+        d/'ce.industry',
         index_col=False,
         dtype={
             'industry_code': str,
@@ -283,7 +284,7 @@ def bls_ce_consolidate(fdDir):
     del industry_type
 
     season = pd.read_table(
-        d / 'ce.seasonal',
+        d/'ce.seasonal',
         index_col=False,
         dtype={
             'industry_code': str,
@@ -295,7 +296,7 @@ def bls_ce_consolidate(fdDir):
     del season
 
     sector = pd.read_table(
-        d / 'ce.supersector',
+        d/'ce.supersector',
         index_col=False,
         dtype={
             'supersector_code': str,
@@ -306,22 +307,22 @@ def bls_ce_consolidate(fdDir):
     del sector
 
     period = pd.read_table(
-        d / 'ce.period',
+        d/'ce.period',
         header=None,
         names=['period', 'period_abbr', 'period_name', ]
     )
 
     # merge series and period to All in chunks then write
-    csvfile = d / 'data.csv'
+    csvfile = d/'data.csv'
     header = True                   # only write headers once
     dtypes = get_bls_dtypes(bls_ce)
     with csvfile.open('a') as f:
-        for chunk in pd.read_table(d / 'ce.data.0.AllCESSeries',
+        for chunk in pd.read_table(d/'ce.data.0.AllCESSeries',
                                    chunksize=10000):
             chunk = pd.merge(chunk, series, how='left', on='series_id')
             chunk = pd.merge(chunk, period, how='left', on='period')
             chunk = convert_dtypes(chunk, dtypes)
-            chunk.to_csv(f, header=header, index=False)
+            chunk.to_csv(f, header=header, index=False, float_format='%.2f')
             header = False
 
     vprint("bls:ce data consolidated\x1b[K.")
@@ -348,20 +349,15 @@ bls_sm = {
         'state_name': str,
         'data_type_text': str,
         'industry_name': str,
-        'period_name': str,
         'series_id': str,
         'supersector_code': str,
         'industry_code': str,
         'period': str,
         'footnote_codes': str,
-        'footnote_code': str,
-        'footnote_text': str,
         'data_type_code': str,
         'seasonal': str,
         'begin_period': str,
         'end_period': str,
-        'period_abbr': str,
-        'period': str,
         'year': int,
         'value': float,
         'begin_year': int,
@@ -380,9 +376,86 @@ def bls_sm_download(fdDir):
         vprint("bls:sm data downloaded\x1b[K.")
 
 
-# TODO consolidate bls:sm:
-# 1. merge series <- area, supersector, datatype, industry, state
-# 2. merge all <- series
+@action
+def bls_sm_consolidate(fdDir):
+    """Consolidate downloaded BLS sm data."""
+    d = check_directory_consolidate(fdDir.joinpath('bls/sm'))
+    vprint('Consolidating {0}...'.format(d), end="\r")
+
+    # merge to series
+    series = pd.read_table(
+        d/'sm.series',
+        dtype={
+            'state_code': str,
+            'area_code': str,
+            'supersector_code': str,
+            'industry_code': str,
+            'data_type_code': str,
+            'footnote_codes': str,
+        }
+    )
+    series.rename(
+        columns={'footnote_codes': 'footnote_code_series', },
+        inplace=True
+    )
+
+    area = pd.read_table(
+        d/'sm.area',
+        index_col=False,
+        dtype={
+            'area_code': str,
+            'area_name': str
+        }
+    )
+    series = pd.merge(series, area, how='left', on='area_code')
+    del area
+
+    supersector = pd.read_table(
+        d/'sm.supersector',
+        index_col=False,
+        dtype={'supersector_code': str, }
+    )
+    series = pd.merge(series, supersector, how='left', on='supersector_code')
+    del supersector
+
+    datatype = pd.read_table(
+        d/'sm.data_type',
+        index_col=False,
+        dtype={'data_type_code': str, }
+    )
+    series = pd.merge(series, datatype, how='left', on='data_type_code')
+    del datatype
+
+    industry = pd.read_table(
+        d/'sm.industry',
+        index_col=False,
+        dtype={'industry_code': str, }
+    )
+    series = pd.merge(series, industry, how='left', on='industry_code')
+    del industry
+
+    state = pd.read_table(
+        d/'sm.state',
+        index_col=False,
+        dtype={'state_code': str, }
+    )
+    series = pd.merge(series, state, how='left', on='state_code')
+    del state
+
+    # merge series and All in chunks then write
+    csvfile = d/'data.csv'
+    header = True
+    dtypes = get_bls_dtypes(bls_sm)
+    with csvfile.open('a') as f:
+        for chunk in pd.read_table(d/'sm.data.1.AllData',
+                                   chunksize=10000):
+            chunk = pd.merge(chunk, series, how='left', on='series_id')
+            chunk.value = pd.to_numeric(chunk.value, errors='coerce')
+            chunk = convert_dtypes(chunk, dtypes)
+            chunk.to_csv(f, header=header, index=False, float_format='%.2f')
+            header = False
+
+    vprint("bls:sm data consolidated\x1b[K.")
 
 
 # utilities
