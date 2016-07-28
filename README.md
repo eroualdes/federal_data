@@ -15,7 +15,7 @@ $ fd available
 ```
 
 ## Roadmap
-* add more federal agencies
+* more federal agencies
 * documentation
 
 ## License
