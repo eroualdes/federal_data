@@ -117,7 +117,7 @@ bls_cew = {
 
 
 def get_bls_cew_urls():
-    """Return full BLS cew URLs to be downloaded."""
+    """Return full BLS CEW URLs to be downloaded."""
     html = r.get(bls_cew['webpage']).text
     for rgx in bls_cew['rgxs']:
         for url_match in re.finditer(rgx, html):
@@ -126,7 +126,7 @@ def get_bls_cew_urls():
 
 @action
 def bls_cew_download(fdDir):
-    """Download BLS cew data."""
+    """Download BLS CEW data."""
     d = check_directory_download(fdDir.joinpath('bls/cew'))
     vprint("bls:cew -> {0}".format(d))
     for url in get_bls_cew_urls():
@@ -136,7 +136,7 @@ def bls_cew_download(fdDir):
 
 @action
 def bls_cew_consolidate(fdDir):
-    """Consolidate downloaded BLS cew data."""
+    """Consolidate downloaded BLS CEW data."""
     d = check_directory_consolidate(fdDir.joinpath('bls/cew'))
     zips = d.glob('*.zip')
     csvfile = d / 'data.csv'
@@ -225,17 +225,17 @@ bls_ce = {
 
 @action
 def bls_ce_download(fdDir):
-    """Download BLS ce data."""
+    """Download BLS CE data."""
     d = check_directory_download(Path(fdDir, 'bls/ce'))
     vprint("bls:ce -> {0}".format(d))
     for url in bls_ce['data_urls']:
         copy_url(bls_ce['webpage']+url, d)
-        vprint("bls:ce data downloaded\x1b[K.")
+    vprint("bls:ce data downloaded\x1b[K.")
 
 
 @action
 def bls_ce_consolidate(fdDir):
-    """Consolidate downloaded BLS ce data."""
+    """Consolidate downloaded BLS CE data."""
     d = check_directory_consolidate(fdDir.joinpath('bls/ce'))
     vprint('Consolidating {0}...'.format(d), end="\r")
 
@@ -368,19 +368,19 @@ bls_sm = {
 
 @action
 def bls_sm_download(fdDir):
-    """Download BLS sm data."""
+    """Download BLS SM data."""
     d = check_directory_download(Path(fdDir, 'bls/sm'))
     vprint("bls:sm -> {0}".format(d))
     for url in bls_sm['data_urls']:
         copy_url(bls_sm['webpage']+url, d)
-        vprint("bls:sm data downloaded\x1b[K.")
+    vprint("bls:sm data downloaded\x1b[K.")
 
 
 @action
 def bls_sm_consolidate(fdDir):
-    """Consolidate downloaded BLS sm data."""
+    """Consolidate downloaded BLS SM data."""
     d = check_directory_consolidate(fdDir.joinpath('bls/sm'))
-    vprint('Consolidating {0}...'.format(d), end="\r")
+    vprint('Consolidating {0}...'.format(d), end='\r')
 
     # merge to series
     series = pd.read_table(
@@ -457,6 +457,76 @@ def bls_sm_consolidate(fdDir):
 
     vprint("bls:sm data consolidated\x1b[K.")
 
+
+# agency: epa
+epa = {
+    'base': 'https://www.epa.gov/',
+    'datasets': {
+        'ucmr': 'Occurrence Data for the Unregulated Contaminant Monitoring Rule (2,3)',
+    },
+}
+
+# agency: epa ucmr
+epa_ucmr = {
+    'webpage': 'https://www.epa.gov/dwucmr/occurrence-data-unregulated-contaminant-monitoring-rule',
+    'data_urls': [
+        'https://www.epa.gov/sites/production/files/2015-09/ucmr-3-occurrence-data.zip',
+        'https://www.epa.gov/sites/production/files/2015-09/ucmr2_occurrencedata_jan12.zip',
+    ],
+    'docs': 'https://www.epa.gov/sites/production/files/2016-05/documents/ucmr3-data-summary-april-2016.pdf',
+    'dtype': {
+        'ZIPCODE': str,
+        'PWSID': str,
+        'PWSName': str,
+        'Size': str,
+        'FacilityID': str,
+        'FacilityName': str,
+        'FacilityWaterType': str,
+        'SamplePointID': str,
+        'SamplePointName': str,
+        'SamplePointType': str,
+        'AssociatedFacilityID': str,
+        'AssociatedSamplePointID': str,
+        'CollectionDate': str,
+        'SampleID': str,
+        'Contaminant': str,
+        'MRL': float,
+        'MethodID': str,
+        'AnalyticalResultsSign': str,
+        'AnalyticalResultsValue': float,
+        'SampleEventCode': str,
+        'MonitoringRequirement': str,
+        'Region': str,
+        'State': str,
+    },
+}
+
+
+@action
+def epa_ucmr_download(fdDir):
+    """Download EPA UCMR data."""
+    d = check_directory_download(Path(fdDir, 'epa/ucmr'))
+    vprint("epa:ucmr -> {0}".format(d))
+    for url in epa_ucmr['data_urls']:
+        copy_url(url, d)
+    vprint("epa:ucmr data downloaded\x1b[K.")
+
+
+def epa_ucmr_consolidate(fdDir):
+    """Conslidate EPA UCMR data."""
+    d = check_directory_consolidate(fdDir.joinpath('epa/ucmr'))
+    vprint('Consolidating {0}...'.format(d), end='\r')
+
+    # TODO
+    # read      UCMR3_All.txt
+    #           UCMR3_DRT.txt
+    #           UCMR3_ZipCodes.txt
+    # from ucmr-3-occurrence-data.zip
+    # then All left_join {DRT, ZipCodes}
+    # and
+    # read UCMR2_All_OccurrenceData_Jan12.txt
+    # from ucmr2_occurrencedata_jan12.zip
+    # then concatenate merged and UCMR2_All
 
 # utilities
 def copy_url(url, directory):

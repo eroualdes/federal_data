@@ -1,13 +1,4 @@
-.Python
-.cache/
-__pycache__/
-bin/
-fips.csv
-include/
-lib/
-pip-selfcheck.json
-share/
-test_fd.py
+__pycache__
 fd.egg-info
 
 ### OS Files ###
