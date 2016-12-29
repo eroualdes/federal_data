@@ -36,7 +36,8 @@ def action(fn):
 
 # agency: bls
 bls = {
-    'base': 'http://www.bls.gov/',
+    'base': 'https://www.bls.gov/',
+    'time_series': 'https://download.bls.gov/pub/time.series/',
     'datasets': {
         'cew': 'Quarterly Census of Employment and Wages',
         'ce': 'Employment, Hours, and Earnings - National',
@@ -47,7 +48,7 @@ bls = {
 
 def get_bls_dtypes(bls_dict):
     """Get dtypes from dictionary that defines bls:dataset of interest."""
-    # TODO this might be generalized to all agencies.
+    # TODO 2016-12-28 moving to util: get_dtypes... deprecated?
     items = bls_dict['dtype'].items()
     ints = [k for k, v in items if v == int]
     flts = [k for k, v in items if v == float]
@@ -57,7 +58,8 @@ def get_bls_dtypes(bls_dict):
 
 # agency: bls cew
 bls_cew = {
-    'webpage': bls['base']+'cew/datatoc.htm',
+    'webpage': 'cew/datatoc.htm',
+    'docs': 'cew/doctoc.htm',
     'rgxs': [
         (r'(?P<url>cew/data/files/[0-9]{4}/csv/'
          r'(?P<year>[0-9]{4})_qtrly_naics10_totals.zip)'),
@@ -117,21 +119,31 @@ bls_cew = {
 
 
 def get_bls_cew_urls():
-    """Return full BLS CEW URLs to be downloaded."""
-    html = r.get(bls_cew['webpage']).text
+    """Yield full BLS CEW URLs to download."""
+    html = r.get(bls['base'] + bls_cew['webpage']).text
     for rgx in bls_cew['rgxs']:
         for url_match in re.finditer(rgx, html):
             yield bls['base']+url_match.group('url')
 
 
 @action
+def bls_cew_detail(fdDir):
+    """Detail information about BLS CEW data."""
+    qprint('BLS CEW dataset info:', end="\n")
+    qprint("* website: {0}".format(bls['base'] + bls_cew['webpage']))
+    qprint("* docs: {0}".format(bls['base'] + bls_cew['docs'])) # TODO add docs page
+    qprint('* dataset URLs:', end="\n")
+    for i, url in enumerate(get_bls_cew_urls()):
+        qprint('{0}. {1}'.format(i, url))
+
+@action
 def bls_cew_download(fdDir):
     """Download BLS CEW data."""
     d = check_directory_download(fdDir.joinpath('bls/cew'))
-    vprint("bls:cew -> {0}".format(d))
+    qprint("bls:cew -> {0}".format(d))
     for url in get_bls_cew_urls():
         copy_url(url, d)
-    vprint("bls:cew data downloaded\x1b[K.")
+    qprint("bls:cew data downloaded\x1b[K.")
 
 
 @action
@@ -146,7 +158,7 @@ def bls_cew_consolidate(fdDir):
     with csvfile.open('a') as f:
         for z in zips:
 
-            vprint('Consolidating {0}...'.format(str(z).split('/')[-1]),
+            qprint('Consolidating {0}...'.format(str(z).split('/')[-1]),
                    end="\r")
 
             with zf(str(z), 'r') as zfile:
@@ -175,12 +187,13 @@ def bls_cew_consolidate(fdDir):
                                      float_format='%.2f')
                         header = False
 
-    vprint("bls:cew data consolidated\x1b[K.")
+    qprint("bls:cew data consolidated\x1b[K.")
 
 
 # agency: bls ce
 bls_ce = {
-    'webpage': 'http://download.bls.gov/pub/time.series/ce/',
+    'webpage': 'ce/',
+    'docs': 'ce.txt',
     'data_urls': [
         'ce.data.0.AllCESSeries',
         'ce.datatype',
@@ -190,7 +203,6 @@ bls_ce = {
         'ce.series',
         'ce.supersector',
     ],
-    'docs': 'ce.txt',
     'dtype': {
         'data_type_text': str,
         'industry_name': str,
@@ -223,21 +235,38 @@ bls_ce = {
 }
 
 
+def get_bls_ce_urls():
+    """Yield full BLS CE URLs to download."""
+    for url in bls_ce['data_urls']:
+        yield bls['time_series'] + bls_ce['webpage'] + url
+
+
+@action
+def bls_ce_detail(fdDir):
+    """Detail information about BLS CE data."""
+    qprint('BLS CE dataset info:', end="\n")
+    qprint("* website: {0}".format(bls['time_series'] + bls_ce['webpage']))
+    qprint("* docs: {0}".format(bls['time_series'] + bls_ce['webpage'] + bls_ce['docs']))
+    qprint('* dataset URLs:', end="\n")
+    for i, url in enumerate(get_bls_ce_urls()):
+        qprint('{0}. {1}'.format(i, url))
+
+
 @action
 def bls_ce_download(fdDir):
     """Download BLS CE data."""
     d = check_directory_download(Path(fdDir, 'bls/ce'))
-    vprint("bls:ce -> {0}".format(d))
-    for url in bls_ce['data_urls']:
-        copy_url(bls_ce['webpage']+url, d)
-    vprint("bls:ce data downloaded\x1b[K.")
+    qprint("bls:ce -> {0}".format(d))
+    for url in get_bls_ce_urls():
+        copy_url(url, d)
+    qprint("bls:ce data downloaded\x1b[K.")
 
 
 @action
 def bls_ce_consolidate(fdDir):
     """Consolidate downloaded BLS CE data."""
     d = check_directory_consolidate(fdDir.joinpath('bls/ce'))
-    vprint('Consolidating {0}...'.format(d), end="\r")
+    qprint('Consolidating {0}...'.format(d), end="\r")
 
     # merge to series
     series = pd.read_table(
@@ -325,12 +354,13 @@ def bls_ce_consolidate(fdDir):
             chunk.to_csv(f, header=header, index=False, float_format='%.2f')
             header = False
 
-    vprint("bls:ce data consolidated\x1b[K.")
+    qprint('bls:ce data consolidated\x1b[K.')
 
 
 # agency: bls sm
 bls_sm = {
-    'webpage': 'http://download.bls.gov/pub/time.series/sm/',
+    'webpage': 'sm/',
+    'docs': 'sm.txt',
     'data_urls': [
         'sm.data.1.AllData',
         'sm.area',
@@ -340,7 +370,6 @@ bls_sm = {
         'sm.state',
         'sm.supersector',
     ],
-    'docs': 'sm.txt',
     'dtype': {
         'area_code': str,
         'area_name': str,
@@ -366,21 +395,38 @@ bls_sm = {
 }
 
 
+def get_bls_sm_urls():
+    """Yield full BLS SM URLs to download."""
+    for url in bls_sm['data_urls']:
+        yield bls['time_series'] + bls_sm['webpage'] + url
+
+
+@action
+def bls_sm_detail(fdDir):
+    """Detail information about BLS SM data."""
+    qprint('BLS SM dataset info:', end="\n")
+    qprint("* website: {0}".format(bls['time_series'] + bls_sm['webpage']))
+    qprint("* docs: {0}".format(bls['time_series'] + bls_sm['webpage'] + bls_sm['docs']))
+    qprint('* dataset URLs:', end="\n")
+    for i, url in enumerate(get_bls_sm_urls()):
+        qprint('{0}. {1}'.format(i, url))
+
+
 @action
 def bls_sm_download(fdDir):
     """Download BLS SM data."""
     d = check_directory_download(Path(fdDir, 'bls/sm'))
-    vprint("bls:sm -> {0}".format(d))
-    for url in bls_sm['data_urls']:
-        copy_url(bls_sm['webpage']+url, d)
-    vprint("bls:sm data downloaded\x1b[K.")
+    qprint("bls:sm -> {0}".format(d))
+    for url in get_bls_sm_urls():
+        copy_url(url, d)
+    qprint("bls:sm data downloaded\x1b[K.")
 
 
 @action
 def bls_sm_consolidate(fdDir):
     """Consolidate downloaded BLS SM data."""
     d = check_directory_consolidate(fdDir.joinpath('bls/sm'))
-    vprint('Consolidating {0}...'.format(d), end='\r')
+    qprint('Consolidating {0}...'.format(d), end='\r')
 
     # merge to series
     series = pd.read_table(
@@ -455,7 +501,7 @@ def bls_sm_consolidate(fdDir):
             chunk.to_csv(f, header=header, index=False, float_format='%.2f')
             header = False
 
-    vprint("bls:sm data consolidated\x1b[K.")
+    qprint("bls:sm data consolidated\x1b[K.")
 
 
 # agency: epa
@@ -468,12 +514,12 @@ epa = {
 
 # agency: epa ucmr
 epa_ucmr = {
-    'webpage': 'https://www.epa.gov/dwucmr/occurrence-data-unregulated-contaminant-monitoring-rule',
+    'webpage': 'dwucmr/occurrence-data-unregulated-contaminant-monitoring-rule',
     'data_urls': [
-        'https://www.epa.gov/sites/production/files/2015-09/ucmr-3-occurrence-data.zip',
-        'https://www.epa.gov/sites/production/files/2015-09/ucmr2_occurrencedata_jan12.zip',
+        '2015-09/ucmr-3-occurrence-data.zip',
+        '2015-09/ucmr2_occurrencedata_jan12.zip',
     ],
-    'docs': 'https://www.epa.gov/sites/production/files/2016-05/documents/ucmr3-data-summary-april-2016.pdf',
+    'docs': 'sites/production/files/2016-05/documents/ucmr3-data-summary-april-2016.pdf',
     'dtype': {
         'ZIPCODE': str,
         'PWSID': str,
@@ -501,32 +547,150 @@ epa_ucmr = {
     },
 }
 
+def get_epa_ucmr_urls():
+    """Yield full EPA UCMR URLs to dowload."""
+    for url_piece in epa_ucmr['data_urls']:
+        yield epa['base'] + 'sites/production/files/' + url_piece
+
 
 @action
 def epa_ucmr_download(fdDir):
     """Download EPA UCMR data."""
     d = check_directory_download(Path(fdDir, 'epa/ucmr'))
-    vprint("epa:ucmr -> {0}".format(d))
-    for url in epa_ucmr['data_urls']:
+    qprint("epa:ucmr -> {0}".format(d))
+    for url in get_epa_ucmr_urls():
         copy_url(url, d)
-    vprint("epa:ucmr data downloaded\x1b[K.")
+    qprint("epa:ucmr data downloaded\x1b[K.")
 
 
+@action
 def epa_ucmr_consolidate(fdDir):
     """Conslidate EPA UCMR data."""
-    d = check_directory_consolidate(fdDir.joinpath('epa/ucmr'))
-    vprint('Consolidating {0}...'.format(d), end='\r')
+    # TODO double check this function; use less memory
+    # < memory: merge other data, read/write/merge/append all3/all2 in chunks?
 
-    # TODO
-    # read      UCMR3_All.txt
-    #           UCMR3_DRT.txt
-    #           UCMR3_ZipCodes.txt
-    # from ucmr-3-occurrence-data.zip
-    # then All left_join {DRT, ZipCodes}
-    # and
-    # read UCMR2_All_OccurrenceData_Jan12.txt
-    # from ucmr2_occurrencedata_jan12.zip
-    # then concatenate merged and UCMR2_All
+    d = check_directory_consolidate(fdDir.joinpath('epa/ucmr'))
+    qprint('Consolidating {0}...'.format(d), end="\r")
+
+    with zf(str(d/'ucmr-3-occurrence-data.zip'), 'r') as zfile3, zf(str(d/'ucmr2_occurrencedata_jan12.zip'), 'r') as zfile2:
+        all3 = pd.read_table(
+            zfile3.open('UCMR3_All.txt'),
+            encoding='latin1',
+            dtype={
+                'PWSID': str,
+                'PWSName': str,
+                'Size': str,
+                'FacilityID': str,
+                'FacilityName': str,
+                'FacilityWaterType': str,
+                'SamplePointID': str,
+                'SamplePointName': str,
+                'SamplePointType': str,
+                'AssociatedFacilityID': str,
+                'AssociatedSamplePointID': str,
+                'CollectionDate': str,
+                'SampleID': str,
+                'Contaminant': str,
+                'MRL': float,
+                'MethodID': str,
+                'AnalyticalResultsSign': str,
+                'AnalyticalResultValue': float,
+                'SampleEventCode': str,
+                'MonitoringRequirement': str,
+                'Region': str,
+                'State': str,
+            }
+        )
+
+        drt = pd.read_table(
+            zfile3.open('UCMR3_DRT.txt'),
+            encoding='latin1',
+            dtype={
+                'PWSID': str,
+                'FacilityID': str,
+                'SamplePointID': str,
+                'SampleEventCode': str,
+                'CollectionDate': str,
+                'Disinfectant Type': str,
+            }
+        )
+
+        all3 = pd.merge(
+            all3, drt,
+            how='left',
+            on=[
+                'PWSID',
+                'FacilityID',
+                'SamplePointID',
+                'CollectionDate',
+            ]
+        )
+        del drt
+
+        zipcodes = pd.read_table(
+            zfile3.open('UCMR3_ZipCodes.txt'),
+            encoding='latin1',
+            dtype={
+                'PWSID': str,
+                'ZIPCODE': str,
+            })
+        all3 = pd.merge(all3, zipcodes, how='left', on='PWSID')
+
+
+        all2 = pd.read_table(
+            zfile2.open('UCMR2_All_OccurrenceData_Jan12.txt'),
+            encoding='latin1',
+            dtype={
+                'PWSID': str,
+                'PWSName': str,
+                'Size': str,
+                'FacilityID': str,
+                'FacilityName': str,
+                'FacilityWaterType': str,
+                'SamplePointID': str,
+                'SamplePointName': str,
+                'SamplePointType': str,
+                'AssociatedFacilityID': str,
+                'AssociatedSamplePointID': str,
+                'DisinfectantType': str,
+                'CollectionDate': str,
+                'SampleID': str,
+                'Contaminant': str,
+                'MRL': float,
+                'MethodID': str,
+                'AnalyticalResultsSign': str,
+                'AnalyticalResultValue': float,
+                'SampleEventCode': str,
+                'MonitoringRequirement': str,
+                'Region': str,
+                'State': str,
+            }
+        )
+
+        all2 = pd.merge(all2, zipcodes, how='left', on='PWSID')
+
+        all = all3.append(all2, ignore_index=True)
+        del all3, all2
+
+        csvfile = d / 'data.csv'
+        with csvfile.open('a') as f:
+            all.to_csv(f, index=False, float_format='%.2f')
+
+    qprint('epa:ucmr data consolidated\x1b[K.')
+
+
+
+@action
+def epa_ucmr_detail(fdDir):
+    """Detail information about EPA UCMR data."""
+    qprint('EPA UCMR dataset info:', end="\n")
+    qprint('* website: {0}'.format(epa['base'] + epa_ucmr['webpage']))
+    qprint('* docs: {0}'.format(epa['base'] + epa_ucmr['docs']))
+    qprint('* dataset URLs:', end="\n")
+    for i, url in enumerate(get_epa_ucmr_urls()):
+        qprint('{0}. {1}'.format(i, url))
+
+
 
 # utilities
 def copy_url(url, directory):
@@ -534,7 +698,7 @@ def copy_url(url, directory):
     d = Path(directory)
     filename = url.split('/')[-1]
     path = d / filename
-    vprint('Downloading {0}...\x1b[K'.format(filename), end="\r")
+    qprint('Downloading {0}...\x1b[K'.format(filename), end="\r")
 
     req = r.get(url, stream=True)
     if req.status_code != r.codes.ok:
@@ -556,10 +720,10 @@ def proceed(prompt):
             print("Please respond with 'yes' or 'no'.")
 
 
-def vprint(*pargs, **pkwargs):
-    """Verbose printing."""
+def qprint(*pargs, **pkwargs):
+    """Quiet printing."""
     global args
-    if args.verbose:
+    if not args.quiet:
         print(*pargs, **pkwargs, flush=True)
 
 
@@ -573,8 +737,8 @@ def check_directory_download(p):
             msg = ('Directory {0} is not empty -- files will be overwritten.',
                    '  Proceed anyway?')
             permission = proceed(''.join(msg).format(str(p)))
-        if not permission:
-            sys.exit(1)
+            if not permission:
+                sys.exit(1)
     else:
         msg = 'Director {0} does not exist; make it and try again.'
         print(msg.format(str(p)))
@@ -601,20 +765,36 @@ def convert_dtypes(df, dtypes):
     return df
 
 
+def get_dtypes(agency_dict):
+    """Get dtypes from agency's schema."""
+    items = agency_dict['dtype'].items()
+    ints = [k for k, v in items if v == int]
+    flts = [k for k, v in items if v == float]
+    strs = [k for k, v in items if v == str]
+    return [ints, flts, strs, ]
+
+
 # cli: subcommands
 def dispatch(args):
     """Dispatch user supplied action/agency to appropriate function."""
     global actions
-    act = '_'.join(args.ad.split(':') + [args.action])
+    aliases = {
+        'a': 'available',
+        'c': 'consolidate',
+        'd': 'download',
+    }
+    action = aliases[args.action] if len(args.action)==1 else args.action
+    act = '_'.join(args.ad.split(':') + [action])
     if act in actions:
         actions[act](args.directory)
     else:
         # TODO add more helpful fail; not understand the dataset or agency?
         msg = "fd doesn't understand how to {0} {1}."
-        print(msg.format(args.action, args.ad))
+        print(msg.format(action, args.ad))
 
 
-agencies = {'bls': bls}
+agencies = {'bls': bls,
+            'epa': epa}
 
 
 def available(args):
@@ -622,19 +802,19 @@ def available(args):
     ag = args.agency
     if ag:
         if ag in agencies:
-            agency = agencies[ag]
-
             print('{0} has available datasets:'.format(ag.upper()))
 
+            agency = agencies[ag]
             for k, v in agency['datasets'].items():
                 print('\t{0:3s} - {1}'.format(k, v))
+
         else:
             print("fd doesn't know how to work with {0}, yet.".format(ag))
 
     else:
         # TODO when more agencies added, formatting will become necessary
         msg = ("fd plays nicely with some of the datasets",
-               " from the following agencies:\n\t {0}")
+               " from the following agencies:\n  {0}")
         print(''.join(msg).format(', '.join(agencies.keys()).upper()))
 
 
@@ -647,7 +827,7 @@ def get_choices():
     return choices
 
 
-# cli: parsing
+# cli
 parser = argparse.ArgumentParser(
     prog='fd',
     description='Provide analysis ready US federal data.'
@@ -662,23 +842,28 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    '-v',
-    '--verbose',
+    '-q',
+    '--quiet',
     action='store_true',
-    help='print status along the way'
+    help='do not print status along the way'
 )
 
 parser.add_argument(
+    '-v',
     '--version',
     action='version',
     version='%(prog)s v0.1'
 )
+
+# cli: actions
 
 subparser = parser.add_subparsers(
     help='actions to perform on federal agencies',
     metavar='action',
     dest='action'
 )
+
+# cli: available
 
 parser_available = subparser.add_parser(
     'available',
@@ -706,6 +891,9 @@ parser_available.add_argument(
 
 parser_available.set_defaults(func=available)
 
+
+# cli: download
+
 parser_download = subparser.add_parser(
     'download',
     aliases='d',
@@ -730,6 +918,9 @@ parser_download.add_argument(
 
 parser_download.set_defaults(func=dispatch)
 
+
+# cli: consolidate
+
 parser_consolidate = subparser.add_parser(
     'consolidate',
     aliases='c',
@@ -753,6 +944,31 @@ parser_consolidate.add_argument(
 )
 
 parser_consolidate.set_defaults(func=dispatch)
+
+# cli: detail
+
+parser_detail = subparser.add_parser(
+    'detail',
+    description="Detail information about specified agency's dataset.",
+    help="detail info about specified agency's dataset",
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+    epilog="""examples:
+
+  $ fd detail bls:cew
+    """
+)
+
+parser_detail.add_argument(
+    'ad',
+    help='agency and dataset of interest, abbreviations only',
+    choices=get_choices(),
+    metavar='agency:dataset',
+    nargs='?',
+    type=str.lower,
+    default=None
+)
+
+parser_detail.set_defaults(func=dispatch)
 
 
 # main program
