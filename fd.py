@@ -26,7 +26,6 @@ import re
 # globals/decorators
 actions = {}
 
-
 def action(fn):
     global actions
     assert fn.__doc__, "Document the subcommand {!r}.".format(fn.__name__)
@@ -774,6 +773,9 @@ def get_dtypes(agency_dict):
     return [ints, flts, strs, ]
 
 
+# cli
+
+
 # cli: subcommands
 def dispatch(args):
     """Dispatch user supplied action/agency to appropriate function."""
@@ -818,6 +820,17 @@ def available(args):
         print(''.join(msg).format(', '.join(agencies.keys()).upper()))
 
 
+def help_message(args):
+    """Print helpful message relative to the specified action."""
+    act = args.action
+    if act:
+        if act in [x for x in subparser.choices.keys() if len(x) > 1]:
+            subparser.choices[str(act)].print_help()
+        else:
+            print('Unknown action.')
+    else:
+        print('Must specify an action.')
+
 def get_choices():
     """Get allowable choices of agency:dataset combinations."""
     choices = []
@@ -827,7 +840,8 @@ def get_choices():
     return choices
 
 
-# cli
+# cli: program
+
 parser = argparse.ArgumentParser(
     prog='fd',
     description='Provide analysis ready US federal data.'
@@ -863,7 +877,7 @@ subparser = parser.add_subparsers(
     dest='action'
 )
 
-# cli: available
+# cli available
 
 parser_available = subparser.add_parser(
     'available',
@@ -892,7 +906,7 @@ parser_available.add_argument(
 parser_available.set_defaults(func=available)
 
 
-# cli: download
+# cli download
 
 parser_download = subparser.add_parser(
     'download',
@@ -919,7 +933,7 @@ parser_download.add_argument(
 parser_download.set_defaults(func=dispatch)
 
 
-# cli: consolidate
+# cli consolidate
 
 parser_consolidate = subparser.add_parser(
     'consolidate',
@@ -945,7 +959,7 @@ parser_consolidate.add_argument(
 
 parser_consolidate.set_defaults(func=dispatch)
 
-# cli: detail
+# cli detail
 
 parser_detail = subparser.add_parser(
     'detail',
@@ -970,6 +984,26 @@ parser_detail.add_argument(
 
 parser_detail.set_defaults(func=dispatch)
 
+# cli help
+
+parser_help = subparser.add_parser(
+    'help',
+    aliases='h',
+    description='Provide help message for the specified action.',
+    help='provide helpful information about specified action',
+    formatter_class=argparse.RawDescriptionHelpFormatter
+)
+
+parser_help.add_argument(
+    'action',
+    help='action about which a helpful message is desired',
+    choices=[x for x in subparser.choices.keys() if len(x) > 1],
+    metavar='action',
+    type=str.lower,
+    default=None
+)
+
+parser_help.set_defaults(func=help_message)
 
 # main program
 def main():
