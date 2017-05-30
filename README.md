@@ -20,6 +20,6 @@ $ fd available
 * include documentation datasets
 
 ## License
-Copyright © 2016 Edward A. Roualdes
+Copyright © 2017 Edward A. Roualdes
 
 Distributed under the GPLv3.

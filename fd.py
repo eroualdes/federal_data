@@ -1,5 +1,5 @@
 # fd provides analysis ready US federal data.
-# Copyright (C) 2016 Edward A. Roualdes
+# Copyright (C) 2017 Edward A. Roualdes
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -773,71 +773,8 @@ def get_dtypes(agency_dict):
     return [ints, flts, strs, ]
 
 
-# cli
-
-
-# cli: subcommands
-def dispatch(args):
-    """Dispatch user supplied action/agency to appropriate function."""
-    global actions
-    aliases = {
-        'a': 'available',
-        'c': 'consolidate',
-        'd': 'download',
-    }
-    action = aliases[args.action] if len(args.action)==1 else args.action
-    act = '_'.join(args.ad.split(':') + [action])
-    if act in actions:
-        actions[act](args.directory)
-    else:
-        # TODO add more helpful fail; not understand the dataset or agency?
-        msg = "fd doesn't understand how to {0} {1}."
-        print(msg.format(action, args.ad))
-
-
 agencies = {'bls': bls,
             'epa': epa}
-
-
-def available(args):
-    """Print available agencies or their datasets."""
-    ag = args.agency
-    if ag:
-        if ag in agencies:
-            print('{0} has available datasets:'.format(ag.upper()))
-
-            agency = agencies[ag]
-            for k, v in agency['datasets'].items():
-                print('\t{0:3s} - {1}'.format(k, v))
-
-        else:
-            print("fd doesn't know how to work with {0}, yet.".format(ag))
-
-    else:
-        # TODO when more agencies added, formatting will become necessary
-        msg = ("fd plays nicely with some of the datasets",
-               " from the following agencies:\n  {0}")
-        print(''.join(msg).format(', '.join(agencies.keys()).upper()))
-
-
-def help_message(args):
-    """Print helpful message relative to the specified action."""
-    act = args.action
-    if act:
-        if act in [x for x in subparser.choices.keys() if len(x) > 1]:
-            subparser.choices[str(act)].print_help()
-        else:
-            print('Unknown action.')
-    else:
-        print('Must specify an action.')
-
-def get_choices():
-    """Get allowable choices of agency:dataset combinations."""
-    choices = []
-    for k, v in agencies.items():
-        for d in v['datasets']:
-            choices.append(k + ':' + d)
-    return choices
 
 
 # cli: program
@@ -903,7 +840,48 @@ parser_available.add_argument(
     default=None
 )
 
+
+def available(args):
+    """Print available agencies or their datasets."""
+    ag = args.agency
+    if ag:
+        if ag in agencies:
+            print('{0} has available datasets:'.format(ag.upper()))
+
+            agency = agencies[ag]
+            for k, v in agency['datasets'].items():
+                print('\t{0:3s} - {1}'.format(k, v))
+
+        else:
+            print("fd doesn't know how to work with {0}, yet.".format(ag))
+
+    else:
+        # TODO when more agencies added, formatting will become necessary
+        msg = ("fd plays nicely with some of the datasets",
+               " from the following agencies:\n  {0}")
+        print(''.join(msg).format(', '.join(agencies.keys()).upper()))
+
+
 parser_available.set_defaults(func=available)
+
+
+# cli dispatch
+def dispatch(args):
+    """Dispatch user supplied action/agency to appropriate function."""
+    global actions
+    aliases = {
+        'a': 'available',
+        'c': 'consolidate',
+        'd': 'download',
+    }
+    action = aliases[args.action] if len(args.action)==1 else args.action
+    act = '_'.join(args.ad.split(':') + [action])
+    if act in actions:
+        actions[act](args.directory)
+    else:
+        # TODO add more helpful fail; not understand the dataset or agency?
+        msg = "fd doesn't understand how to {0} {1}."
+        print(msg.format(action, args.ad))
 
 
 # cli download
@@ -919,6 +897,16 @@ parser_download = subparser.add_parser(
   $ fd download bls:cew
     """
 )
+
+
+def get_choices():
+    """Get allowable choices of agency:dataset combinations."""
+    choices = []
+    for k, v in agencies.items():
+        for d in v['datasets']:
+            choices.append(k + ':' + d)
+    return choices
+
 
 parser_download.add_argument(
     'ad',
@@ -1002,6 +990,18 @@ parser_help.add_argument(
     type=str.lower,
     default=None
 )
+
+
+def help_message(args):
+    """Print helpful message relative to the specified action."""
+    act = args.action
+    if act:
+        if act in [x for x in subparser.choices.keys() if len(x) > 1]:
+            subparser.choices[str(act)].print_help()
+        else:
+            print('Unknown action.')
+    else:
+        print('Must specify an action.')
 
 parser_help.set_defaults(func=help_message)
 
